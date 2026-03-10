@@ -13,10 +13,10 @@
 // Leave apiKey empty to run in Local Mode (everything works, just not cross-device).
 
 export const FIREBASE_CONFIG = {
-  apiKey: "",
-  authDomain: "",
-  projectId: "",
-  storageBucket: "",
-  messagingSenderId: "",
-  appId: "",
+  apiKey: "AIzaSyCs93i9U8hduECtuXbsdhGzsY7PFyMFPEY",
+  authDomain: "the-destiny-of-power.firebaseapp.com",
+  projectId: "the-destiny-of-power",
+  storageBucket: "the-destiny-of-power.firebasestorage.app",
+  messagingSenderId: "381607050937",
+  appId: "1:381607050937:web:de2d927bc4dff0a7366568",
 };
