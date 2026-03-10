@@ -192,4 +192,77 @@ export const CloudDB = {
       return [];
     }
   },
+
+  /* ── Friend Requests ───────────────────────────────────────────── */
+
+  /**
+   * Write a friend request document: /friendRequests/{from}→{to}
+   */
+  async sendFriendRequest(from, to) {
+    if (!_db) return;
+    try {
+      const id = `${from}→${to}`;
+      await setDoc(doc(_db, "friendRequests", id), { from, to, at: Date.now() });
+    } catch (e) {
+      console.warn("[TDP Cloud] sendFriendRequest:", e.message);
+    }
+  },
+
+  /**
+   * Delete a friend request document.
+   */
+  async deleteFriendRequest(from, to) {
+    if (!_db) return;
+    try {
+      await deleteDoc(doc(_db, "friendRequests", `${from}→${to}`));
+    } catch (e) {
+      console.warn("[TDP Cloud] deleteFriendRequest:", e.message);
+    }
+  },
+
+  /**
+   * Get all incoming friend requests for a user.
+   * Returns array of { from, to, at }.
+   */
+  async getIncomingRequests(username) {
+    if (!_db) return [];
+    try {
+      const snap = await getDocs(
+        fbQuery(collection(_db, "friendRequests"), where("to", "==", username), limit(50)),
+      );
+      return snap.docs.map((d) => d.data());
+    } catch {
+      return [];
+    }
+  },
+
+  /* ── Friends List ──────────────────────────────────────────────── */
+
+  /**
+   * Save a user's friends list to Firestore.
+   * @param {string} username
+   * @param {string[]} list
+   */
+  async setFriendsList(username, list) {
+    if (!_db) return;
+    try {
+      await setDoc(doc(_db, "friendLists", username), { list });
+    } catch (e) {
+      console.warn("[TDP Cloud] setFriendsList:", e.message);
+    }
+  },
+
+  /**
+   * Get a user's friends list from Firestore. Returns string[] or null.
+   * @param {string} username
+   */
+  async getFriendsList(username) {
+    if (!_db) return null;
+    try {
+      const snap = await getDoc(doc(_db, "friendLists", username));
+      return snap.exists() ? (snap.data().list || []) : null;
+    } catch {
+      return null;
+    }
+  },
 };

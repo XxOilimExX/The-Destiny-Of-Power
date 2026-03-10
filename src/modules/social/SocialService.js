@@ -165,7 +165,7 @@ export class SocialService {
   }
 
   /* ── Friend Requests ─────────────────────────────── */
-  sendFriendRequest(fromUser, toUser) {
+  async sendFriendRequest(fromUser, toUser) {
     if (fromUser === toUser) throw new Error("You cannot add yourself.");
     const friends = this.getFriends(fromUser);
     if (friends.includes(toUser)) throw new Error("Already friends with this commander.");
@@ -178,7 +178,8 @@ export class SocialService {
     if (requests[reverseKey]) {
       delete requests[reverseKey];
       localStorage.setItem(REQUESTS_KEY, JSON.stringify(requests));
-      this._addFriend(fromUser, toUser);
+      await this._addFriend(fromUser, toUser);
+      CloudDB.deleteFriendRequest(toUser, fromUser).catch(() => {});
       this._notify("accepted", toUser);
       return "accepted";
     }
@@ -186,6 +187,7 @@ export class SocialService {
     if (requests[key]) throw new Error("Friend request already sent.");
     requests[key] = { from: fromUser, to: toUser, at: Date.now() };
     localStorage.setItem(REQUESTS_KEY, JSON.stringify(requests));
+    CloudDB.sendFriendRequest(fromUser, toUser).catch(() => {});
     this._notify("sent", toUser);
     return "sent";
   }
@@ -200,21 +202,23 @@ export class SocialService {
     return Object.values(requests).filter((r) => r.from === username);
   }
 
-  acceptRequest(currentUser, fromUser) {
+  async acceptRequest(currentUser, fromUser) {
     const requests = this._getRequests();
     const key = `${fromUser}→${currentUser}`;
     if (!requests[key]) throw new Error("No pending request from this user.");
     delete requests[key];
     localStorage.setItem(REQUESTS_KEY, JSON.stringify(requests));
-    this._addFriend(currentUser, fromUser);
+    await this._addFriend(currentUser, fromUser);
+    CloudDB.deleteFriendRequest(fromUser, currentUser).catch(() => {});
     this._notify("accepted", fromUser);
   }
 
-  declineRequest(currentUser, fromUser) {
+  async declineRequest(currentUser, fromUser) {
     const requests = this._getRequests();
     const key = `${fromUser}→${currentUser}`;
     delete requests[key];
     localStorage.setItem(REQUESTS_KEY, JSON.stringify(requests));
+    CloudDB.deleteFriendRequest(fromUser, currentUser).catch(() => {});
   }
 
   /* ── Friends List ────────────────────────────────── */
@@ -223,11 +227,41 @@ export class SocialService {
     return data[username] || [];
   }
 
-  removeFriend(userA, userB) {
+  async removeFriend(userA, userB) {
     const data = this._getFriendsData();
     data[userA] = (data[userA] || []).filter((f) => f !== userB);
     data[userB] = (data[userB] || []).filter((f) => f !== userA);
     localStorage.setItem(FRIENDS_KEY, JSON.stringify(data));
+    CloudDB.setFriendsList(userA, data[userA]).catch(() => {});
+    CloudDB.setFriendsList(userB, data[userB]).catch(() => {});
+  }
+
+  /**
+   * Pull incoming requests + friends list from Firestore into localStorage.
+   * Called in background when Social screen is opened.
+   */
+  async syncFromCloud(username) {
+    if (!CloudDB.ready()) return;
+
+    // Merge incoming friend requests from cloud
+    const cloudRequests = await CloudDB.getIncomingRequests(username);
+    if (cloudRequests.length > 0) {
+      const local = this._getRequests();
+      for (const r of cloudRequests) {
+        const key = `${r.from}→${r.to}`;
+        if (!local[key]) local[key] = r;
+      }
+      localStorage.setItem(REQUESTS_KEY, JSON.stringify(local));
+    }
+
+    // Merge friends list from cloud
+    const cloudFriends = await CloudDB.getFriendsList(username);
+    if (cloudFriends && cloudFriends.length > 0) {
+      const data = this._getFriendsData();
+      const merged = Array.from(new Set([...(data[username] || []), ...cloudFriends]));
+      data[username] = merged;
+      localStorage.setItem(FRIENDS_KEY, JSON.stringify(data));
+    }
   }
 
   /* ── Search ──────────────────────────────────────── */
@@ -274,13 +308,15 @@ export class SocialService {
   }
 
   /* ── Internals ───────────────────────────────────── */
-  _addFriend(userA, userB) {
+  async _addFriend(userA, userB) {
     const data = this._getFriendsData();
     if (!data[userA]) data[userA] = [];
     if (!data[userB]) data[userB] = [];
     if (!data[userA].includes(userB)) data[userA].push(userB);
     if (!data[userB].includes(userA)) data[userB].push(userA);
     localStorage.setItem(FRIENDS_KEY, JSON.stringify(data));
+    CloudDB.setFriendsList(userA, data[userA]).catch(() => {});
+    CloudDB.setFriendsList(userB, data[userB]).catch(() => {});
   }
 
   _notify(type, relatedUser) {

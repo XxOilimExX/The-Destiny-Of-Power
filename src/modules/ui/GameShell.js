@@ -118,6 +118,12 @@ export class GameShell {
       if (nav) {
         this.state.activeScreen = nav.dataset.screen;
         if (nav.dataset.screen === "multiplayer") this.state.multiplayerView = null;
+        if (nav.dataset.screen === "social" && this.state.currentUser) {
+          // Background sync: pull cloud friend data, then re-render once done
+          this.socialService.syncFromCloud(this.state.currentUser.username)
+            .then(() => this.renderView())
+            .catch(() => {});
+        }
         this.renderView();
       }
       if (!act) return;
@@ -160,10 +166,10 @@ export class GameShell {
         void this.handleStartJoin();
       }
       if (action === "friend-search") void this.handleFriendSearch();
-      if (action === "send-request") this.handleSendRequest(act.dataset.user);
-      if (action === "accept-request") this.handleAcceptRequest(act.dataset.user);
-      if (action === "decline-request") this.handleDeclineRequest(act.dataset.user);
-      if (action === "remove-friend") this.handleRemoveFriend(act.dataset.user);
+      if (action === "send-request") void this.handleSendRequest(act.dataset.user);
+      if (action === "accept-request") void this.handleAcceptRequest(act.dataset.user);
+      if (action === "decline-request") void this.handleDeclineRequest(act.dataset.user);
+      if (action === "remove-friend") void this.handleRemoveFriend(act.dataset.user);
       if (action === "view-profile") { this.state.viewingProfile = act.dataset.user; this.renderView(); }
       if (action === "close-profile-view") { this.state.viewingProfile = null; this.renderView(); }
       if (action === "save-bio") this.handleSaveBio();
@@ -247,6 +253,8 @@ export class GameShell {
         this.loadProfile();
         this.socialService.onNotification = (type, user) => this.handleSocialNotification(type, user);
         this.socialService.startOnlineSimulation(user.username);
+        // Background sync of friend data from cloud
+        this.socialService.syncFromCloud(user.username).catch(() => {});
       } catch (err) {
         this.state.authError = err.message;
       } finally {
@@ -352,9 +360,9 @@ export class GameShell {
     this.renderView();
   }
 
-  handleSendRequest(toUser) {
+  async handleSendRequest(toUser) {
     try {
-      const result = this.socialService.sendFriendRequest(this.state.currentUser.username, toUser);
+      const result = await this.socialService.sendFriendRequest(this.state.currentUser.username, toUser);
       if (result === "accepted") {
         this.showNotification("social", `You and ${toUser} are now friends!`);
       } else {
@@ -366,9 +374,9 @@ export class GameShell {
     this.renderView();
   }
 
-  handleAcceptRequest(fromUser) {
+  async handleAcceptRequest(fromUser) {
     try {
-      this.socialService.acceptRequest(this.state.currentUser.username, fromUser);
+      await this.socialService.acceptRequest(this.state.currentUser.username, fromUser);
       this.showNotification("social", `You and ${fromUser} are now friends!`);
     } catch (err) {
       this.state.status = err.message;
@@ -376,13 +384,13 @@ export class GameShell {
     this.renderView();
   }
 
-  handleDeclineRequest(fromUser) {
-    this.socialService.declineRequest(this.state.currentUser.username, fromUser);
+  async handleDeclineRequest(fromUser) {
+    await this.socialService.declineRequest(this.state.currentUser.username, fromUser);
     this.renderView();
   }
 
-  handleRemoveFriend(user) {
-    this.socialService.removeFriend(this.state.currentUser.username, user);
+  async handleRemoveFriend(user) {
+    await this.socialService.removeFriend(this.state.currentUser.username, user);
     this.renderView();
   }
 
