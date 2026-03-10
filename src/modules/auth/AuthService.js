@@ -1,4 +1,5 @@
 import { containsProfanity } from "../../utils/profanityFilter.js";
+import { CloudDB } from "../../services/CloudDB.js";
 
 const USERS_STORAGE_KEY = "tdop-cloud-users";
 const SESSION_STORAGE_KEY = "tdop-active-user";
@@ -69,6 +70,9 @@ export class AuthService {
     localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
     localStorage.setItem(SESSION_STORAGE_KEY, user.username);
 
+    // Sync to cloud so other devices can find this account
+    CloudDB.createUser(user).catch(() => {/* non-critical */});
+
     return user;
   }
 
@@ -86,7 +90,18 @@ export class AuthService {
       throw new Error("Password must contain at least 8 characters.");
     }
 
-    const user = users.find((entry) => entry.normalizedUsername === normalizedUsername);
+    let user = users.find((entry) => entry.normalizedUsername === normalizedUsername);
+
+    // If not cached locally, try the cloud (cross-device login)
+    if (!user && CloudDB.ready()) {
+      const cloudUser = await CloudDB.getUser(normalizedUsername);
+      if (cloudUser) {
+        // Cache locally for future logins on this device
+        users.push(cloudUser);
+        localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+        user = cloudUser;
+      }
+    }
 
     if (!user) {
       throw new Error("No account found for that commander name.");

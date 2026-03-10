@@ -1,6 +1,7 @@
 import { formatDate, formatPopulation } from "../../utils/formatters.js";
 import { containsProfanity, sanitizeBio } from "../../utils/profanityFilter.js";
 import { TITLES, RARITY_TABLE, CHEST_REWARDS } from "../social/SocialService.js";
+import { CLOUD_ENABLED, CloudDB } from "../../services/CloudDB.js";
 
 export class GameShell {
   static CUSTOM_AVATAR_SIZE = 256;
@@ -28,9 +29,13 @@ export class GameShell {
       hostPassword: this.generatePassword(),
       hostRegion: "europe",
       joinPassword: "",
+      serverInfo: null,
+      serverBrowse: [],
+      mpLoading: false,
       /* Social */
       friendSearch: "",
       friendSearchResults: [],
+      friendSearchLoading: false,
       viewingProfile: null,
       /* Profile */
       bio: "",
@@ -146,21 +151,15 @@ export class GameShell {
         this.state.hostPassword = this.generatePassword();
         this.renderView();
       }
-      if (action === "start-host") {
-        this.state.status = `Hosting ${this.state.hostRegion} server · Code: ${this.state.hostPassword}`;
-        this.showNotification("success", `Server hosted on ${this.state.hostRegion.replace("-", " ")}!`);
-        this.renderView();
+      if (action === "start-host") void this.handleStartHost();
+      if (action === "start-join") void this.handleStartJoin();
+      if (action === "browse-servers") void this.handleBrowseServers();
+      if (action === "stop-server") void this.handleStopServer();
+      if (action === "join-server-direct") {
+        this.state.joinPassword = act.dataset.code;
+        void this.handleStartJoin();
       }
-      if (action === "start-join") {
-        if (this.state.joinPassword.length < 4) {
-          this.state.status = "Enter a valid server code.";
-        } else {
-          this.state.status = `Joining server with code ${this.state.joinPassword}…`;
-          this.showNotification("success", "Connecting to server…");
-        }
-        this.renderView();
-      }
-      if (action === "friend-search") this.handleFriendSearch();
+      if (action === "friend-search") void this.handleFriendSearch();
       if (action === "send-request") this.handleSendRequest(act.dataset.user);
       if (action === "accept-request") this.handleAcceptRequest(act.dataset.user);
       if (action === "decline-request") this.handleDeclineRequest(act.dataset.user);
@@ -283,6 +282,12 @@ export class GameShell {
   async handleLogout() {
     this.socialService.stopOnlineSimulation();
     this.stopChestTimer();
+    // Clean up any active hosted server
+    if (this.state.serverInfo && this.state.multiplayerView === "hosting" && CLOUD_ENABLED) {
+      await CloudDB.deleteServer(this.state.serverInfo.code).catch(() => {});
+    }
+    this.state.serverInfo = null;
+    this.state.multiplayerView = null;
     await this.authService.logout();
     this.state.currentUser = null;
     this.state.authMode = "login";
@@ -336,11 +341,14 @@ export class GameShell {
   }
 
   /* ─── Social Handlers ───────────────────────────── */
-  handleFriendSearch() {
+  async handleFriendSearch() {
     if (!this.state.currentUser) return;
-    this.state.friendSearchResults = this.socialService.searchUsers(
-      this.state.friendSearch, this.state.currentUser.username
+    this.state.friendSearchLoading = true;
+    this.renderView();
+    this.state.friendSearchResults = await this.socialService.searchUsers(
+      this.state.friendSearch, this.state.currentUser.username,
     );
+    this.state.friendSearchLoading = false;
     this.renderView();
   }
 
@@ -479,6 +487,85 @@ export class GameShell {
 
   getTitle(titleId) {
     return TITLES.find((t) => t.id === titleId)?.label || "Recruit";
+  }
+
+  /* ─── Multiplayer Handlers (cloud-aware) ────────── */
+  async handleStartHost() {
+    const code = this.state.hostPassword;
+    const region = this.state.hostRegion;
+    const host = this.state.currentUser.username;
+
+    this.state.mpLoading = true;
+    this.renderView();
+
+    if (CLOUD_ENABLED && CloudDB.ready()) {
+      await CloudDB.createServer({ code, host, region });
+    }
+
+    this.state.serverInfo = { code, host, region, players: [host] };
+    this.state.multiplayerView = "hosting";
+    this.state.status = `Hosting ${region.replace(/-/g, " ")} server · Code: ${code}`;
+    this.state.mpLoading = false;
+    this.showNotification("success", CLOUD_ENABLED ? `Server live in ${region.replace(/-/g, " ")}!` : `Server code generated. Share it locally!`);
+    this.renderView();
+  }
+
+  async handleStartJoin() {
+    const code = this.state.joinPassword.toUpperCase().trim();
+    if (code.length < 4) {
+      this.state.status = "Enter a valid server code.";
+      this.renderView();
+      return;
+    }
+
+    this.state.mpLoading = true;
+    this.renderView();
+
+    if (CLOUD_ENABLED && CloudDB.ready()) {
+      const server = await CloudDB.joinServer(code, this.state.currentUser.username);
+      if (server) {
+        this.state.serverInfo = server;
+        this.state.multiplayerView = "lobby";
+        this.state.status = `Connected to ${server.host}'s server.`;
+        this.showNotification("success", `Joined ${server.host}'s server!`);
+      } else {
+        this.state.status = "Server not found. Check the code and try again.";
+        this.showNotification("success", "Server not found.");
+      }
+    } else {
+      // Local mode: just display the lobby with the code
+      this.state.serverInfo = { code, host: "Unknown Host", region: "local", players: [this.state.currentUser.username] };
+      this.state.multiplayerView = "lobby";
+      this.state.status = `Joining server ${code}…`;
+      this.showNotification("success", "Connecting to server…");
+    }
+
+    this.state.mpLoading = false;
+    this.renderView();
+  }
+
+  async handleBrowseServers() {
+    this.state.multiplayerView = "browse";
+    this.state.mpLoading = true;
+    this.state.serverBrowse = [];
+    this.renderView();
+
+    if (CLOUD_ENABLED && CloudDB.ready()) {
+      this.state.serverBrowse = await CloudDB.getPublicServers();
+    }
+
+    this.state.mpLoading = false;
+    this.renderView();
+  }
+
+  async handleStopServer() {
+    if (this.state.serverInfo && CLOUD_ENABLED) {
+      await CloudDB.deleteServer(this.state.serverInfo.code).catch(() => {});
+    }
+    this.state.serverInfo = null;
+    this.state.multiplayerView = null;
+    this.state.status = "Server stopped.";
+    this.renderView();
   }
 
   prepareCustomAvatar(file) {
@@ -797,19 +884,26 @@ export class GameShell {
   screenMultiplayer() {
     if (this.state.multiplayerView === "host") return this.screenMpHost();
     if (this.state.multiplayerView === "join") return this.screenMpJoin();
+    if (this.state.multiplayerView === "hosting") return this.screenMpHosting();
+    if (this.state.multiplayerView === "browse") return this.screenMpBrowse();
+    if (this.state.multiplayerView === "lobby") return this.screenMpLobby();
+
+    const cloudBadge = CLOUD_ENABLED
+      ? `<span class="cloud-badge cloud-badge--online">&#9728; Online</span>`
+      : `<span class="cloud-badge cloud-badge--local">&#9711; Local Mode</span>`;
 
     return `
       <div class="screen__head">
-        <p class="screen__tag">Multiplayer</p>
+        <p class="screen__tag">Multiplayer ${cloudBadge}</p>
         <h2>Multiplayer Mode</h2>
-        <p>Choose how you want to play with other commanders.</p>
+        <p>Choose how you want to play with other commanders ${CLOUD_ENABLED ? "worldwide" : "on this device"}.</p>
       </div>
       <div class="mp-options">
         <button class="mp-option" type="button" data-action="mp-host">
           <div class="mp-option__icon">&#9873;</div>
           <div class="mp-option__text">
             <strong>Host A Server</strong>
-            <p>Create a private room with a unique code. Select your server region and invite others to join.</p>
+            <p>Create a room with a unique code. Select your region and invite others to join.</p>
           </div>
           <div class="mp-option__arrow">&#10132;</div>
         </button>
@@ -821,6 +915,113 @@ export class GameShell {
           </div>
           <div class="mp-option__arrow">&#10132;</div>
         </button>
+        <button class="mp-option ${!CLOUD_ENABLED ? "mp-option--disabled" : ""}" type="button" data-action="browse-servers" ${!CLOUD_ENABLED ? "title='Requires Firebase'" : ""}>
+          <div class="mp-option__icon">&#9741;</div>
+          <div class="mp-option__text">
+            <strong>Browse Public Servers</strong>
+            <p>${CLOUD_ENABLED ? "Explore open servers from commanders around the world." : "Connect to Firebase to browse worldwide servers."}</p>
+          </div>
+          <div class="mp-option__arrow">&#10132;</div>
+        </button>
+      </div>
+    `;
+  }
+
+  screenMpHosting() {
+    const s = this.state.serverInfo;
+    return `
+      <div class="screen__head">
+        <p class="screen__tag">Live Server <span class="mp-live-dot">&#9679; LIVE</span></p>
+        <h2>Your Server Is Active</h2>
+        <p>Share the code below with the commanders you want to invite.</p>
+      </div>
+      <div class="mp-host-panel">
+        <div class="mp-code-box">
+          <span class="mp-code-box__label">Server Code</span>
+          <div class="mp-code-box__value">${s.code}</div>
+        </div>
+        <div class="mp-server-info">
+          <div class="mp-server-info__row">
+            <span>Region</span>
+            <strong>${s.region.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}</strong>
+          </div>
+          <div class="mp-server-info__row">
+            <span>Host</span>
+            <strong>${s.host}</strong>
+          </div>
+        </div>
+        <div class="profile-section" style="margin-top:14px">
+          <h3 class="profile-section__title">Players <span class="social-count">${s.players.length}</span></h3>
+          <div class="social-results">
+            ${s.players.map((p) => `
+              <div class="social-user">
+                <div class="social-user__name">${p}${p === s.host ? ` <span class="social-badge social-badge--friend">Host</span>` : ""}</div>
+              </div>`).join("")}
+          </div>
+        </div>
+        <button class="btn btn--danger btn--wide" type="button" data-action="stop-server" style="margin-top:16px">Stop Server</button>
+      </div>
+    `;
+  }
+
+  screenMpBrowse() {
+    const servers = this.state.serverBrowse;
+    return `
+      <div class="screen__head">
+        <button class="btn btn--ghost" type="button" data-action="mp-back">&#8592; Back</button>
+        <p class="screen__tag" style="margin-top:12px">Public Servers</p>
+        <h2>Browse Servers</h2>
+        <p>Join an active game hosted by another commander worldwide.</p>
+      </div>
+      ${this.state.mpLoading ? `<div class="loading-state">Scanning for servers worldwide&#8230;</div>` : ""}
+      ${!this.state.mpLoading && servers.length === 0 ? `
+        <div class="social-empty-state">
+          <p>No public servers found right now. Be the first to host one!</p>
+          <button class="btn btn--primary" type="button" data-action="mp-host">Host A Server</button>
+        </div>` : ""}
+      ${servers.length > 0 ? `
+        <div class="social-results" style="margin-top:12px">
+          ${servers.map((s) => `
+            <div class="social-user">
+              <div class="social-user__info">
+                <div class="social-user__name">${s.host}'s Server</div>
+                <div class="social-user__status">${s.region.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())} &middot; ${s.players.length} player${s.players.length !== 1 ? "s" : ""} &middot; Code: ${s.code}</div>
+              </div>
+              <button class="btn btn--primary" type="button" data-action="join-server-direct" data-code="${s.code}">Join</button>
+            </div>`).join("")}
+        </div>` : ""}
+    `;
+  }
+
+  screenMpLobby() {
+    const s = this.state.serverInfo;
+    return `
+      <div class="screen__head">
+        <button class="btn btn--ghost" type="button" data-action="mp-back">&#8592; Leave Server</button>
+        <p class="screen__tag" style="margin-top:12px">Game Lobby</p>
+        <h2>${s.host}'s Server</h2>
+        <p>Waiting for the match to begin.</p>
+      </div>
+      <div class="mp-host-panel">
+        <div class="mp-server-info">
+          <div class="mp-server-info__row">
+            <span>Server Code</span>
+            <strong>${s.code}</strong>
+          </div>
+          <div class="mp-server-info__row">
+            <span>Region</span>
+            <strong>${s.region.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}</strong>
+          </div>
+        </div>
+        <div class="profile-section" style="margin-top:14px">
+          <h3 class="profile-section__title">Players <span class="social-count">${s.players.length}</span></h3>
+          <div class="social-results">
+            ${s.players.map((p) => `
+              <div class="social-user">
+                <div class="social-user__name">${p}${p === s.host ? ` <span class="social-badge social-badge--friend">Host</span>` : ""}</div>
+              </div>`).join("")}
+          </div>
+        </div>
       </div>
     `;
   }
@@ -897,11 +1098,16 @@ export class GameShell {
       return this.renderProfileView(this.state.viewingProfile);
     }
 
+    const cloudBadge = CLOUD_ENABLED
+      ? `<span class="cloud-badge cloud-badge--online">&#9728; Online — worldwide search active</span>`
+      : `<span class="cloud-badge cloud-badge--local">&#9711; Local Mode — <a href="#" style="color:inherit;text-decoration:underline" title="Fill in src/config/cloud.js to go global">set up Firebase</a> to search globally</span>`;
+
     return `
       <div class="screen__head">
         <p class="screen__tag">Social Hub</p>
         <h2>Social</h2>
         <p>Find other commanders, send friend requests and manage your connections.</p>
+        <div style="margin-top:8px">${cloudBadge}</div>
       </div>
 
       <div class="social-grid">
@@ -910,9 +1116,12 @@ export class GameShell {
           <h3 class="social-section__title">Find Commanders</h3>
           <div class="social-search">
             <input type="text" data-friend-search placeholder="Search by username…" value="${this.state.friendSearch}" />
-            <button class="btn btn--primary" type="button" data-action="friend-search">Search</button>
+            <button class="btn btn--primary" type="button" data-action="friend-search" ${this.state.friendSearchLoading ? "disabled" : ""}>
+              ${this.state.friendSearchLoading ? "Searching…" : "Search"}
+            </button>
           </div>
-          ${this.state.friendSearchResults.length > 0 ? `
+          ${this.state.friendSearchLoading ? `<div class="loading-state">Searching commanders ${CLOUD_ENABLED ? "worldwide" : "locally"}&#8230;</div>` : ""}
+          ${!this.state.friendSearchLoading && this.state.friendSearchResults.length > 0 ? `
             <div class="social-results">
               ${this.state.friendSearchResults.map((u) => {
                 const isFriend = friends.includes(u);

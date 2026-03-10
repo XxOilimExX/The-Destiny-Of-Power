@@ -1,3 +1,5 @@
+import { CloudDB } from "../../services/CloudDB.js";
+
 const FRIENDS_KEY = "tdop-friends";
 const REQUESTS_KEY = "tdop-friend-requests";
 const PROFILES_KEY = "tdop-profiles";
@@ -229,9 +231,17 @@ export class SocialService {
   }
 
   /* ── Search ──────────────────────────────────────── */
-  searchUsers(query, currentUser) {
+  async searchUsers(query, currentUser) {
     const q = query.trim().toLowerCase();
     if (q.length < 2) return [];
+
+    // Cloud search (finds commanders worldwide)
+    if (CloudDB.ready()) {
+      const cloudResults = await CloudDB.searchUsers(q, currentUser);
+      if (cloudResults.length > 0) return cloudResults;
+    }
+
+    // Local fallback
     try {
       const raw = localStorage.getItem(USERS_KEY);
       const users = raw ? JSON.parse(raw) : [];
