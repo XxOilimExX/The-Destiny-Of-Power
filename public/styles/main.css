@@ -3001,10 +3001,20 @@ input::placeholder { color: var(--text-muted); }
 .tac-player-info__name { font-size: 0.95rem; font-weight: 700; color: #fff; line-height: 1.1; }
 .tac-player-info__nation { font-size: 0.68rem; letter-spacing: 0.08em; color: rgba(255,255,255,0.4); text-transform: uppercase; }
 .tac-topbar__center { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; }
-.tac-phase-banner { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.tac-phase-banner { display: flex; align-items: center; gap: 6px; }
 .tac-phase-banner__label { font-size: 1rem; font-weight: 900; letter-spacing: 0.18em; text-transform: uppercase; }
 .tac-phase-banner--strategy .tac-phase-banner__label { color: #4ade80; }
 .tac-phase-banner--battle .tac-phase-banner__label { color: #f87171; text-shadow: 0 0 12px rgba(248,113,113,0.6); }
+.tac-phase-banner--prep .tac-phase-banner__label { color: #4ade80; text-shadow: 0 0 10px rgba(74,222,128,0.4); }
+.tac-phase-banner--action .tac-phase-banner__label { color: #f87171; text-shadow: 0 0 12px rgba(248,113,113,0.6); }
+.tac-phase-banner--prep { background: rgba(74,222,128,0.08); border: 1px solid rgba(74,222,128,0.2); border-radius: 8px; padding: 4px 18px; }
+.tac-phase-banner--action { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.2); border-radius: 8px; padding: 4px 18px; animation: action-pulse 2s ease infinite; }
+@keyframes action-pulse {
+  0%, 100% { border-color: rgba(248,113,113,0.2); }
+  50% { border-color: rgba(248,113,113,0.5); box-shadow: 0 0 16px rgba(248,113,113,0.15); }
+}
+.tac-phase-banner__icon { font-size: 1.1rem; margin-right: 4px; }
+.tac-phase-banner__timer { font-size: 0.9rem; font-weight: 900; color: #fbbf24; font-variant-numeric: tabular-nums; margin-left: 8px; }
 .tac-phase-banner__hint { font-size: 0.65rem; color: rgba(255,255,255,0.35); letter-spacing: 0.06em; }
 .tac-turn-badge {
   display: inline-block;
@@ -3016,7 +3026,7 @@ input::placeholder { color: var(--text-muted); }
   letter-spacing: 0.08em;
   color: rgba(255,255,255,0.45);
 }
-.tac-topbar__right { min-width: 130px; display: flex; justify-content: flex-end; }
+.tac-topbar__right { min-width: 130px; display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
 .tac-surrender-btn {
   background: transparent;
   border: 1px solid rgba(248,113,113,0.3);
@@ -3212,7 +3222,7 @@ input::placeholder { color: var(--text-muted); }
   width: 100%;
   height: 100%;
   object-fit: contain;
-  opacity: 0.25;
+  opacity: 0.5;
   pointer-events: none;
 }
 .tac-map__scanlines {
@@ -3661,4 +3671,177 @@ input::placeholder { color: var(--text-muted); }
   font-weight: 700;
   margin-top: 2px;
   font-size: 0.75rem;
+}
+
+/* ═══ Top bar resource strip ══════════════════════════════ */
+.tac-topbar-res {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-right: 10px;
+}
+.tac-topbar-res__item {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #cbd5e1;
+  white-space: nowrap;
+}
+.tac-topbar-res__item--skill {
+  color: #fbbf24;
+  background: rgba(251,191,36,0.12);
+  border: 1px solid rgba(251,191,36,0.25);
+  border-radius: 99px;
+  padding: 1px 8px;
+  animation: skill-glow 1.5s ease infinite;
+}
+@keyframes skill-glow {
+  0%, 100% { box-shadow: none; }
+  50% { box-shadow: 0 0 8px rgba(251,191,36,0.4); }
+}
+
+/* ═══ Phase Indicator (bottom bar) ════════════════════════ */
+.tac-phase-indicator {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 3px 12px;
+  border-radius: 99px;
+}
+.tac-phase-indicator--prep {
+  color: #4ade80;
+  background: rgba(74,222,128,0.1);
+  border: 1px solid rgba(74,222,128,0.25);
+}
+.tac-phase-indicator--action {
+  color: #f87171;
+  background: rgba(248,113,113,0.1);
+  border: 1px solid rgba(248,113,113,0.25);
+  animation: action-indicator-blink 1.2s ease infinite;
+}
+@keyframes action-indicator-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* ═══ Bonus stat rows ═════════════════════════════════════ */
+.tac-tab-stat-row--bonus {
+  background: rgba(251,191,36,0.06);
+  border: 1px solid rgba(251,191,36,0.12);
+  border-radius: 4px;
+}
+.tac-tab-stat-row--bonus strong { color: #fbbf24; }
+
+/* ═══ Skill Tree ══════════════════════════════════════════ */
+.tac-tab-content--skills {
+  gap: 10px;
+}
+.tac-skill-points {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(251,191,36,0.08);
+  border: 1px solid rgba(251,191,36,0.2);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 0.78rem;
+  color: #fbbf24;
+}
+.tac-skill-points strong {
+  font-size: 1.1rem;
+  font-weight: 900;
+}
+.tac-skill-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.tac-skill-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  padding: 8px 10px;
+  transition: border-color 0.2s, background 0.2s;
+}
+.tac-skill-card:hover {
+  border-color: rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.06);
+}
+.tac-skill-card--maxed {
+  border-color: rgba(74,222,128,0.25);
+  background: rgba(74,222,128,0.06);
+}
+.tac-skill-card__icon {
+  font-size: 1.3rem;
+  width: 28px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.tac-skill-card__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.tac-skill-card__name {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #e2e8f0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tac-skill-card__pips {
+  display: flex;
+  gap: 3px;
+}
+.tac-skill-pip {
+  width: 14px;
+  height: 5px;
+  border-radius: 99px;
+  background: rgba(255,255,255,0.1);
+  transition: background 0.3s;
+}
+.tac-skill-pip--filled {
+  background: linear-gradient(90deg, #4ade80, #22c55e);
+  box-shadow: 0 0 4px rgba(74,222,128,0.4);
+}
+.tac-skill-card__lvl {
+  font-size: 0.55rem;
+  color: rgba(255,255,255,0.35);
+  letter-spacing: 0.06em;
+}
+.tac-skill-card__btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  background: rgba(74,222,128,0.12);
+  border: 1px solid rgba(74,222,128,0.3);
+  color: #4ade80;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.tac-skill-card__btn:hover:not(:disabled) {
+  background: rgba(74,222,128,0.25);
+  box-shadow: 0 0 8px rgba(74,222,128,0.4);
+  transform: scale(1.08);
+}
+.tac-skill-card__btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+.tac-skill-card--maxed .tac-skill-card__btn {
+  background: rgba(74,222,128,0.08);
+  border-color: rgba(74,222,128,0.2);
+  color: #4ade80;
 }
