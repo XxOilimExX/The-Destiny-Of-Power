@@ -192,18 +192,7 @@ export class GameShell {
         }
         this.state.gamePhase = "intro";
         this.state.introStep = 0;
-        this.state.turnNumber = 1;
-        this.state.turnTimer = 150;
         this.state.chatMessages = [];
-        this.state.gold = 50;
-        this.state.troops = 10;
-        this.state.farmsUsed = 0;
-        // Initial troop distribution
-        const troopCounts = {};
-        for (const [code] of Object.entries(this.state.lockedCountries)) {
-          troopCounts[code] = 5 + Math.floor(Math.random() * 6);
-        }
-        this.state.troopCounts = troopCounts;
         this.renderView();
         this.startIntro();
       }
@@ -231,46 +220,16 @@ export class GameShell {
         this.finishIntro();
       }
       if (action === "start-turn") {
-        this.state.turnPhase = "battle";
-        this.state.farmsUsed = 0;
-        // Income per turn
-        const pCode = this.worldState.selectedCountryCode;
-        const pCountry = this.worldState.countries.find((co) => co.code === pCode);
-        const income = 10 + Math.floor((pCountry?.economyScore ?? 50) / 10);
-        this.state.gold += income;
-        this.state.chatMessages = [`\u2694 Turn ${this.state.turnNumber}: +${income} gold income`, ...this.state.chatMessages].slice(0, 30);
         this.renderView();
       }
       if (action === "farm-resources") {
-        if (this.state.farmsUsed < 3 && this.state.turnPhase === "battle") {
-          const yield_ = 8 + Math.floor(Math.random() * 12);
-          this.state.gold += yield_;
-          this.state.farmsUsed++;
-          this.state.chatMessages = [`\u2618 Farmed ${yield_} gold (${3 - this.state.farmsUsed} farms left)`, ...this.state.chatMessages].slice(0, 30);
-          this.renderView();
-        }
+        this.renderView();
       }
       if (action === "recruit-troops") {
-        const cost = 15;
-        if (this.state.gold >= cost) {
-          const count = 2 + Math.floor(Math.random() * 3);
-          this.state.gold -= cost;
-          this.state.troops += count;
-          const myCode = this.worldState.selectedCountryCode;
-          this.state.troopCounts[myCode] = (this.state.troopCounts[myCode] || 0) + count;
-          this.state.chatMessages = [`\u2694 Recruited ${count} troops for ${cost} gold`, ...this.state.chatMessages].slice(0, 30);
-          this.renderView();
-        }
+        this.renderView();
       }
       if (action === "fortify-nation") {
-        const cost = 20;
-        if (this.state.gold >= cost) {
-          this.state.gold -= cost;
-          const myCode = this.worldState.selectedCountryCode;
-          this.state.troopCounts[myCode] = (this.state.troopCounts[myCode] || 0) + 3;
-          this.state.chatMessages = [`\u26E8 Fortified defenses! +3 garrison troops`, ...this.state.chatMessages].slice(0, 30);
-          this.renderView();
-        }
+        this.renderView();
       }
       if (action === "zoom-to-world") {
         this.state.gameZoom = "world";
@@ -287,38 +246,6 @@ export class GameShell {
         this.renderView();
       }
       if (action === "confirm-attack") {
-        const countries = this.worldState.countries;
-        const playerCode = this.worldState.selectedCountryCode;
-        const player = countries.find((co) => co.code === playerCode);
-        const targetCode = act.dataset.code;
-        const target = countries.find((co) => co.code === targetCode);
-        if (player && target) {
-          const myTroops = this.state.troopCounts[playerCode] || 5;
-          const enemyTroops = this.state.troopCounts[targetCode] || 5;
-          const milBonus = (player.militaryScore - target.militaryScore) / 100;
-          const troopRatio = myTroops / Math.max(1, enemyTroops);
-          const odds = Math.min(92, Math.max(8, Math.round(50 * troopRatio + milBonus * 20)));
-          const won = Math.random() * 100 < odds;
-          // Losses
-          const atkLoss = 1 + Math.floor(Math.random() * 3);
-          const defLoss = 1 + Math.floor(Math.random() * 4);
-          this.state.troopCounts[playerCode] = Math.max(1, myTroops - atkLoss);
-          this.state.troopCounts[targetCode] = Math.max(0, enemyTroops - defLoss);
-          if (won) {
-            const userName = this.state.currentUser?.username ?? "Player";
-            this.state.lockedCountries[targetCode] = userName;
-            this.state.troopCounts[targetCode] = Math.max(1, Math.floor(atkLoss));
-            this.state.chatMessages = [
-              `\u2694 VICTORY! ${player.name} conquered ${target.name}! (-${atkLoss} troops)`,
-              ...this.state.chatMessages
-            ].slice(0, 30);
-          } else {
-            this.state.chatMessages = [
-              `\u{1F525} REPELLED! ${player.name} failed to take ${target.name} (-${atkLoss} troops)`,
-              ...this.state.chatMessages
-            ].slice(0, 30);
-          }
-        }
         this.state.attackTarget = null;
         this.renderView();
       }
@@ -1020,65 +947,6 @@ export class GameShell {
   }
 
   startTurnTimer() {
-    clearInterval(this._turnInterval);
-    this._turnInterval = setInterval(() => {
-      this.state.turnTimer--;
-      if (this.state.turnTimer <= 0) {
-        this.state.turnTimer = 150;
-        this.state.turnNumber++;
-        this.state.turnPhase = "strategy";
-        this.state.farmsUsed = 0;
-        // Bot AI: each bot gets resources & may attack
-        const c = this.worldState.countries;
-        const locked = this.state.lockedCountries;
-        const username = this.state.currentUser?.username ?? "Player";
-        const bots = Object.entries(locked).filter(([, name]) => name.startsWith("Bot "));
-        for (const [botCode, botName] of bots) {
-          // Bots earn income & recruit
-          this.state.troopCounts[botCode] = (this.state.troopCounts[botCode] || 5) + 2;
-          // Try to attack a random enemy
-          const targets = Object.entries(locked).filter(([code, name]) => code !== botCode && name !== botName);
-          if (targets.length > 0 && Math.random() < 0.6) {
-            const [defCode, defOwner] = targets[Math.floor(Math.random() * targets.length)];
-            const atk = c.find((co) => co.code === botCode);
-            const def = c.find((co) => co.code === defCode);
-            const atkTroops = this.state.troopCounts[botCode] || 5;
-            const defTroops = this.state.troopCounts[defCode] || 5;
-            const won = Math.random() < (atkTroops / (atkTroops + defTroops));
-            this.state.troopCounts[botCode] = Math.max(1, atkTroops - 1 - Math.floor(Math.random() * 2));
-            this.state.troopCounts[defCode] = Math.max(0, defTroops - 1 - Math.floor(Math.random() * 2));
-            if (won && atk && def) {
-              this.state.lockedCountries[defCode] = botName;
-              this.state.troopCounts[defCode] = 1 + Math.floor(Math.random() * 2);
-              this.state.chatMessages = [
-                `\u2694 ${atk.name} (${botName}) conquered ${def.name}!`,
-                ...this.state.chatMessages,
-              ].slice(0, 30);
-            } else if (atk && def) {
-              this.state.chatMessages = [
-                `\u{1F6E1} ${def.name} repelled ${atk.name}'s attack`,
-                ...this.state.chatMessages,
-              ].slice(0, 30);
-            }
-          }
-        }
-        // Check win/loss
-        const playerTerritories = Object.entries(locked).filter(([, n]) => n === username);
-        const totalTerritories = Object.keys(locked).length;
-        if (playerTerritories.length === 0) {
-          this.state.chatMessages = ["\u{1F480} DEFEAT — You have been eliminated!", ...this.state.chatMessages];
-          this.stopTurnTimer();
-        } else if (playerTerritories.length === totalTerritories) {
-          this.state.chatMessages = ["\u{1F451} VICTORY — You conquered the entire world!", ...this.state.chatMessages];
-          this.stopTurnTimer();
-        }
-      }
-      // Update timer display without full re-render
-      const el = this.root.querySelector("[data-turn-timer]");
-      const phaseEl = this.root.querySelector("[data-turn-phase]");
-      if (el) el.textContent = this.formatTimer(this.state.turnTimer);
-      if (phaseEl) phaseEl.textContent = `Turn ${this.state.turnNumber}`;
-    }, 1000);
   }
 
   stopTurnTimer() {
