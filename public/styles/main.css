@@ -1,8 +1,8 @@
-@import url("https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&family=Orbitron:wght@400;500;600;700;800;900&family=Share+Tech+Mono&display=swap");
+﻿@import url("https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&family=Orbitron:wght@400;500;600;700;800;900&family=Share+Tech+Mono&display=swap");
 
-/* ═══════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    DESIGN TOKENS
-   ═══════════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 :root {
   color-scheme: dark;
   --font-title: "Orbitron", sans-serif;
@@ -52,9 +52,9 @@
   --r-full: 999px;
 }
 
-/* ═══════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    RESET
-   ═══════════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 body {
@@ -71,9 +71,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; border: none; background: none; }
 h1, h2, h3, h4 { line-height: 1.2; }
 
-/* ═══════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    APP ROOT
-   ═══════════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 #app { min-height: 100vh; }
 .game-root {
   position: relative;
@@ -82,9 +82,9 @@ h1, h2, h3, h4 { line-height: 1.2; }
   isolation: isolate;
 }
 
-/* ═══════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    CINEMATIC BACKGROUND
-   ═══════════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 .bg { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
 
 .bg__space {
@@ -141,9 +141,9 @@ h1, h2, h3, h4 { line-height: 1.2; }
   background: radial-gradient(ellipse 70% 60% at 50% 50%, transparent 40%, rgba(0,0,0,0.6) 100%);
 }
 
-/* ═══════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    EARTH GLOBE
-   ═══════════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 .earth-wrap {
   position: fixed; z-index: 0;
   top: 50%; left: 50%;
@@ -220,9 +220,9 @@ h1, h2, h3, h4 { line-height: 1.2; }
   background: radial-gradient(circle at 30% 28%, rgba(255,92,92,0.08), transparent 50%);
 }
 
-/* ═══════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    HUD LAYER
-   ═══════════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 .hud {
   position: relative; z-index: 2;
   display: flex; flex-direction: column;
@@ -231,9 +231,9 @@ h1, h2, h3, h4 { line-height: 1.2; }
   gap: 16px;
 }
 
-/* ═══════════════════════════════════════════════════════
-   PANELS — Rounded deep blue glass
-   ═══════════════════════════════════════════════════════ */
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+   PANELS â€” Rounded deep blue glass
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 .panel {
   background: linear-gradient(170deg, rgba(23, 16, 16, 0.92), rgba(8, 6, 6, 0.96));
   border: 1px solid var(--border-subtle);
@@ -249,9 +249,9 @@ h1, h2, h3, h4 { line-height: 1.2; }
 .main-layout > *:nth-child(1) { animation-delay: 0.08s; }
 .main-layout > *:nth-child(2) { animation-delay: 0.12s; }
 
-/* ═══════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    TOP BAR
-   ═══════════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 .topbar {
   display: flex; align-items: center; justify-content: space-between;
   padding: 14px 24px; gap: 16px;
@@ -277,9 +277,9 @@ h1, h2, h3, h4 { line-height: 1.2; }
 }
 .topbar__info { display: flex; gap: 10px; flex-wrap: wrap; }
 
-/* ═══════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    TAG BADGES
-   ═══════════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 .tag {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 6px 14px;
@@ -297,18 +297,18 @@ h1, h2, h3, h4 { line-height: 1.2; }
   box-shadow: 0 0 8px var(--accent-glow);
 }
 
-/* ═══════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    MAIN LAYOUT
-   ═══════════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 .main-layout {
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
   gap: 16px; flex: 1; min-height: 0;
 }
 
-/* ═══════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    SIDEBAR
-   ═══════════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 .sidebar {
   display: flex; flex-direction: column; gap: 6px;
   padding: 20px;
@@ -412,9 +412,9 @@ h1, h2, h3, h4 { line-height: 1.2; }
   background: rgba(255, 48, 72, 0.2);
 }
 
-/* ═══════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    BUTTONS
-   ═══════════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   padding: 12px 20px;
@@ -469,9 +469,9 @@ h1, h2, h3, h4 { line-height: 1.2; }
 .btn--wide { width: 100%; }
 .btn--lg { padding: 15px 28px; font-size: 0.95rem; border-radius: var(--r-lg); }
 
-/* ═══════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    CONTENT AREA
-   ═══════════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 .content { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 
 /* HERO BANNER */
@@ -520,9 +520,9 @@ h1, h2, h3, h4 { line-height: 1.2; }
   color: var(--text-primary);
 }
 
-/* ═══════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    SCREEN CONTENT
-   ═══════════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 .screen {
   padding: 28px;
   min-height: 320px;
@@ -543,9 +543,9 @@ h1, h2, h3, h4 { line-height: 1.2; }
   letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 8px;
 }
 
-/* ═══════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    CARDS
-   ═══════════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 
 .card {
@@ -586,18 +586,18 @@ h1, h2, h3, h4 { line-height: 1.2; }
   background: linear-gradient(170deg, rgba(216, 31, 47, 0.09), rgba(29, 18, 18, 0.84));
 }
 
-/* ═══════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    SOLO MODE
-   ═══════════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 .solo-grid {
   display: grid;
   grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
   gap: 12px; align-items: start;
 }
 
-/* ═══════════════════════════════════════════════════════
-   SETTINGS PANEL — Game-style toggle rows
-   ═══════════════════════════════════════════════════════ */
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+   SETTINGS PANEL â€” Game-style toggle rows
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 .settings-section {
   background: rgba(29, 18, 18, 0.76);
   border: 1px solid var(--border-subtle);
@@ -680,9 +680,9 @@ h1, h2, h3, h4 { line-height: 1.2; }
 .setting-select:hover { border-color: var(--border-medium); }
 .setting-select:focus { border-color: var(--border-bright); box-shadow: 0 0 0 3px rgba(216,31,47,0.12); }
 
-/* ═══════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    FORM CONTROLS
-   ═══════════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 select, input[type="text"], input[type="password"] {
   width: 100%;
   padding: 12px 16px;
@@ -708,9 +708,9 @@ input::placeholder { color: var(--text-muted); }
   letter-spacing: 0.05em; text-transform: uppercase;
 }
 
-/* ═══════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    BOTTOM BAR
-   ═══════════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 .bottombar {
   display: flex; align-items: center; justify-content: space-between;
   padding: 10px 20px; gap: 12px;
@@ -743,9 +743,9 @@ input::placeholder { color: var(--text-muted); }
   transform: translateY(-1px);
 }
 
-/* ═══════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    AUTH / LOGIN
-   ═══════════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 .auth-stage {
   flex: 1;
   display: grid; place-items: center;
@@ -846,18 +846,18 @@ input::placeholder { color: var(--text-muted); }
   margin-top: 8px;
 }
 
-/* ═══════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    PROGRESS BAR
-   ═══════════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 .mode-actions {
   display: flex;
   justify-content: flex-start;
   margin-top: 16px;
 }
 
-/* ═══════════════════════════════════════════════════════
-   MULTIPLAYER — Host / Join Options
-   ═══════════════════════════════════════════════════════ */
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+   MULTIPLAYER â€” Host / Join Options
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 .mp-options {
   display: flex; flex-direction: column; gap: 12px;
 }
@@ -999,9 +999,9 @@ input::placeholder { color: var(--text-muted); }
   padding: 16px;
 }
 
-/* ═══════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    SOCIAL PAGE
-   ═══════════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 .social-grid {
   display: flex; flex-direction: column; gap: 18px;
 }
@@ -1086,7 +1086,7 @@ input::placeholder { color: var(--text-muted); }
   padding: 20px 0;
 }
 
-/* ─── Cloud / Online Badges ──────────────────────── */
+/* â”€â”€â”€ Cloud / Online Badges â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .cloud-badge {
   display: inline-block;
   font-size: 0.72rem;
@@ -1106,7 +1106,7 @@ input::placeholder { color: var(--text-muted); }
   border: 1px solid rgba(234, 179, 8, 0.25);
 }
 
-/* ─── Loading State ──────────────────────────────── */
+/* â”€â”€â”€ Loading State â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .loading-state {
   font-size: 0.82rem;
   color: var(--text-muted);
@@ -1121,7 +1121,7 @@ input::placeholder { color: var(--text-muted); }
   50% { opacity: 0.4; }
 }
 
-/* ─── Multiplayer Live Dot ───────────────────────── */
+/* â”€â”€â”€ Multiplayer Live Dot â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .mp-live-dot {
   color: #22c55e;
   font-size: 0.72rem;
@@ -1129,7 +1129,7 @@ input::placeholder { color: var(--text-muted); }
   animation: pulse 1.2s ease-in-out infinite;
 }
 
-/* ─── Server Info Rows ───────────────────────────── */
+/* â”€â”€â”€ Server Info Rows â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .mp-server-info {
   display: flex;
   flex-direction: column;
@@ -1151,14 +1151,14 @@ input::placeholder { color: var(--text-muted); }
   text-transform: capitalize;
 }
 
-/* ─── Disabled MP Option ─────────────────────────── */
+/* â”€â”€â”€ Disabled MP Option â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .mp-option--disabled {
   opacity: 0.45;
   cursor: not-allowed;
   pointer-events: none;
 }
 
-/* ─── Social Empty State ─────────────────────────── */
+/* â”€â”€â”€ Social Empty State â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .social-empty-state {
   text-align: center;
   padding: 28px 16px;
@@ -1170,9 +1170,9 @@ input::placeholder { color: var(--text-muted); }
   font-size: 0.85rem;
 }
 
-/* ═══════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    PROFILE PAGE
-   ═══════════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 .profile-banner {
   display: flex; align-items: center; gap: 18px;
   padding: 28px 30px;
@@ -1320,9 +1320,9 @@ input::placeholder { color: var(--text-muted); }
   font-size: 0.6rem;
 }
 
-/* ═══════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    NOTIFICATION TOASTS
-   ═══════════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 .notif-container {
   position: fixed;
   top: 20px; right: 20px;
@@ -1385,9 +1385,9 @@ input::placeholder { color: var(--text-muted); }
   background: rgba(255, 255, 255, 0.1);
 }
 
-/* ═══════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    KEYFRAMES
-   ═══════════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 @keyframes nebulaDrift {
   0%   { transform: translate3d(0, 0, 0) scale(1); }
   100% { transform: translate3d(60px, 30px, 0) scale(1.15); }
@@ -1436,9 +1436,9 @@ input::placeholder { color: var(--text-muted); }
   transition-duration: 0.01ms !important;
 }
 
-/* ═══════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    RESPONSIVE
-   ═══════════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 @media (max-width: 1100px) {
   .main-layout { grid-template-columns: 1fr; }
   .hero { flex-direction: column; align-items: flex-start; }
@@ -1472,9 +1472,9 @@ input::placeholder { color: var(--text-muted); }
   .notif-container { left: 10px; right: 10px; max-width: none; }
 }
 
-/* ═══════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    PROFILE VIEWER (view other profiles)
-   ═══════════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 .profile-view {
   max-width: 520px;
   margin: 0 auto;
@@ -1547,9 +1547,9 @@ input::placeholder { color: var(--text-muted); }
   text-decoration-color: var(--accent-bright);
 }
 
-/* ═══════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    TITLE SELECTOR
-   ═══════════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 .title-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
@@ -1581,9 +1581,9 @@ input::placeholder { color: var(--text-muted); }
   box-shadow: 0 0 12px rgba(216,31,47,0.2);
 }
 
-/* ═══════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    DAILY CHEST
-   ═══════════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 .chest-section {
   display: flex;
   flex-direction: column;
@@ -1732,9 +1732,9 @@ input::placeholder { color: var(--text-muted); }
   color: rgba(255,255,255,0.4);
 }
 
-/* ═══════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    CUSTOM AVATAR UPLOAD
-   ═══════════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 .custom-avatar-img {
   width: 100%;
   height: 100%;
@@ -1783,9 +1783,9 @@ input::placeholder { color: var(--text-muted); }
   border-radius: inherit;
 }
 
-/* ═══════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    120 FPS / GPU-ACCELERATED PERFORMANCE
-   ═══════════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
 /* Force GPU compositing on animated elements */
 .bg, .globe, .globe__ocean, .globe__land, .globe__clouds,
@@ -1825,9 +1825,9 @@ input::placeholder { color: var(--text-muted); }
 .title-item:hover { transform: scale(1.03); }
 .mp-option:hover { transform: translateY(-2px); }
 
-/* ═══════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    COUNTRY PICK SCREEN
-   ═══════════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
 .pick-screen {
   display: flex;
@@ -1845,7 +1845,7 @@ input::placeholder { color: var(--text-muted); }
 .pick-screen__title h2 { margin: 4px 0 2px; }
 .pick-screen__title p { color: #888; font-size: 0.82rem; }
 
-/* ── Region Tabs ── */
+/* â”€â”€ Region Tabs â”€â”€ */
 .pick-region-tabs {
   display: flex;
   flex-wrap: wrap;
@@ -1876,7 +1876,7 @@ input::placeholder { color: var(--text-muted); }
   color: #f87171;
 }
 
-/* ── Country Grid ── */
+/* â”€â”€ Country Grid â”€â”€ */
 .country-pick-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
@@ -1915,9 +1915,20 @@ input::placeholder { color: var(--text-muted); }
 }
 
 .country-card__swatch {
-  height: 6px;
+  height: 40px;
   width: 100%;
   flex-shrink: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 10px;
+}
+
+.country-card__flag-emoji {
+  font-size: 1.5rem;
+  line-height: 1;
+  filter: drop-shadow(0 1px 4px rgba(0,0,0,0.7));
 }
 
 .country-card__body {
@@ -1948,7 +1959,7 @@ input::placeholder { color: var(--text-muted); }
   margin-bottom: 4px;
 }
 
-/* ── Mini Stat Bars ── */
+/* â”€â”€ Mini Stat Bars â”€â”€ */
 .country-card__stats {
   display: flex;
   flex-direction: column;
@@ -1994,7 +2005,7 @@ input::placeholder { color: var(--text-muted); }
   flex-shrink: 0;
 }
 
-/* ── Lock / Selected Badges ── */
+/* â”€â”€ Lock / Selected Badges â”€â”€ */
 .country-card__lock-overlay {
   position: absolute;
   inset: 0;
@@ -2021,7 +2032,7 @@ input::placeholder { color: var(--text-muted); }
   border-radius: 10px;
 }
 
-/* ── Confirm Bar ── */
+/* â”€â”€ Confirm Bar â”€â”€ */
 .pick-confirm-bar {
   position: sticky;
   bottom: 0;
@@ -2072,175 +2083,528 @@ input::placeholder { color: var(--text-muted); }
   color: #888;
 }
 
-/* ═══════════════════════════════════════════════════════
-   ACTIVE GAME SCREEN
-   ═══════════════════════════════════════════════════════ */
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+   ACTIVE GAME SCREEN â€” WORLD STAGE
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
-.game-active {
+.world-stage {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 10px;
 }
 
-.game-active__header {
+/* â”€â”€ HUD â”€â”€ */
+.game-hud {
   display: flex;
   align-items: center;
-  gap: 14px;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 12px;
-  padding: 14px 16px;
+  gap: 10px;
+  background: rgba(0,0,0,0.72);
+  border: 1px solid rgba(0,220,80,0.14);
+  border-radius: 10px;
+  padding: 10px 14px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
-.game-active__flag {
-  width: 40px;
-  height: 40px;
-  border-radius: 8px;
-  flex-shrink: 0;
-  border: 2px solid rgba(255,255,255,0.15);
-}
-
-.game-active__info { flex: 1; min-width: 0; }
-.game-active__info h2 { margin: 0 0 2px; font-size: 1.1rem; }
-.game-active__info p { margin: 0; font-size: 0.78rem; color: #888; }
-
-.game-active__badge {
-  color: #4ade80;
-  font-weight: 700;
-  font-size: 0.75rem;
-  letter-spacing: 0.05em;
-}
-
-.game-active__panels {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-}
-
-@media (max-width: 520px) {
-  .game-active__panels { grid-template-columns: 1fr; }
-  .country-pick-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
-}
-
-.game-active__panel {
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 12px;
-  padding: 14px 16px;
-}
-
-.game-active__panel-title {
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  color: #aaa;
-  text-transform: uppercase;
-  margin: 0 0 12px;
-}
-
-/* ── Game Stat Bars ── */
-.game-stat { margin-bottom: 10px; }
-
-.game-stat__head {
+.hud-player {
   display: flex;
-  justify-content: space-between;
+  align-items: center;
+  gap: 9px;
+  flex: 1;
+  min-width: 0;
+}
+
+.hud-flag-wrap {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+}
+
+.hud-flag-bg {
+  width: 34px;
+  height: 34px;
+  border-radius: 7px;
+  border: 2px solid rgba(255,255,255,0.18);
+}
+
+.hud-flag-emoji {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+}
+
+.hud-info { min-width: 0; }
+.hud-country-name { font-size: 0.88rem; font-weight: 700; color: #fff; }
+.hud-capital { font-size: 0.68rem; color: #888; }
+
+.hud-live-badge {
+  font-size: 0.62rem;
+  font-weight: 800;
+  color: #4ade80;
+  letter-spacing: 0.07em;
+  animation: hud-blink 2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes hud-blink {
+  0%, 100% { opacity: 1; } 50% { opacity: 0.45; }
+}
+
+.hud-stats-row {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+  justify-content: flex-end;
+}
+
+.hud-stat-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.hud-stat-lbl {
+  font-size: 0.57rem;
+  font-weight: 800;
+  color: #777;
+  letter-spacing: 0.06em;
+  width: 22px;
+}
+
+.hud-mini-bar {
+  width: 44px;
+  height: 5px;
+  background: rgba(255,255,255,0.07);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.hud-mini-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+
+.hud-fill--eco { background: #4ade80; }
+.hud-fill--mil { background: #f87171; }
+.hud-fill--stb { background: #60a5fa; }
+
+.hud-stat-num {
+  font-size: 0.62rem;
+  color: #aaa;
+  font-weight: 700;
+  width: 18px;
+}
+
+/* â”€â”€ World View â”€â”€ */
+.world-view {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: fade-in 0.25s ease;
+}
+
+.world-view--hidden { display: none; }
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Globe row */
+.globe-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 4px 0;
+}
+
+.game-globe {
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 38% 38%, rgba(80,200,80,0.22) 0%, transparent 50%),
+    radial-gradient(circle, #183818 0%, #0b200b 50%, #04100
+4 100%);
+  box-shadow:
+    0 0 0 1px rgba(0,230,0,0.1),
+    0 0 28px rgba(0,200,0,0.12),
+    inset -6px -6px 28px rgba(0,0,0,0.8);
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+  animation: globe-float 7s ease-in-out infinite;
+}
+
+@keyframes globe-float {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-5px); }
+}
+
+.globe-grid-spin {
+  position: absolute;
+  inset: -30%;
+  background:
+    repeating-linear-gradient(0deg, transparent, transparent 12px, rgba(0,255,0,0.04) 12px, rgba(0,255,0,0.04) 13px),
+    repeating-linear-gradient(90deg, transparent, transparent 12px, rgba(0,255,0,0.04) 12px, rgba(0,255,0,0.04) 13px);
+  animation: globe-grid-spin 22s linear infinite;
+  border-radius: 50%;
+}
+
+@keyframes globe-grid-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.globe-atmo {
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  box-shadow: 0 0 18px rgba(0,255,0,0.14), inset 0 0 18px rgba(0,180,0,0.06);
+  pointer-events: none;
+}
+
+.globe-info { flex: 1; }
+.globe-info__title {
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: rgba(0,200,80,0.7);
+  text-transform: uppercase;
   margin-bottom: 4px;
 }
+.globe-info__count {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #ccc;
+  margin-bottom: 8px;
+}
+.globe-info__hint {
+  font-size: 0.72rem;
+  color: #777;
+  line-height: 1.55;
+  margin: 0;
+}
 
-.game-stat__label { font-size: 0.78rem; color: #ccc; font-weight: 600; }
-.game-stat__val   { font-size: 0.78rem; color: #999; font-weight: 700; }
+/* â”€â”€ World Map Background â”€â”€ */
+.world-map-bg {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2.1 / 1;
+  min-height: 180px;
+  background:
+    radial-gradient(ellipse at 50% 55%, rgba(0,30,12,0.65) 0%, rgba(0,6,3,0.97) 100%);
+  border: 1px solid rgba(0,200,80,0.15);
+  border-radius: 8px;
+  overflow: hidden;
+}
 
-.game-stat__bar {
+.map-scanlines {
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(
+      0deg, transparent, transparent 3px,
+      rgba(0,255,0,0.012) 3px, rgba(0,255,0,0.012) 4px
+    );
+  pointer-events: none;
+  z-index: 1;
+}
+
+.radar-sweep {
+  position: absolute;
+  inset: 0;
+  background: conic-gradient(from 0deg at 50% 50%, transparent 330deg, rgba(0,255,80,0.05) 360deg);
+  animation: radar-sweep 6s linear infinite;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 2;
+}
+
+@keyframes radar-sweep {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* â”€â”€ Country Nodes on Map â”€â”€ */
+.country-node {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  z-index: 5;
+  padding: 4px;
+}
+
+.cn-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--dot-color, #666);
+  border: 1px solid rgba(255,255,255,0.35);
+  box-shadow: 0 0 7px var(--dot-color, #666);
+  transition: all 0.18s ease;
+}
+
+.cn-label {
+  font-size: 0.48rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.6);
+  white-space: nowrap;
+  letter-spacing: 0.03em;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+  max-width: 52px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.country-node--player .cn-dot {
+  box-shadow: 0 0 12px var(--dot-color, #4ade80), 0 0 4px #fff;
+  animation: cn-pulse-p 2s ease-in-out infinite;
+  border-color: rgba(255,255,255,0.7);
+}
+
+.country-node--player .cn-label { color: #4ade80; }
+
+.country-node--bot .cn-dot {
+  box-shadow: 0 0 7px var(--dot-color, #fb923c);
+}
+
+.country-node--enemy .cn-label { color: #f87171; }
+
+.country-node--target .cn-dot {
+  width: 12px !important;
+  height: 12px !important;
+  box-shadow: 0 0 20px #ff2020, 0 0 8px #fff !important;
+  animation: cn-pulse-e 0.7s ease-in-out infinite !important;
+  border-color: #ff8080 !important;
+}
+
+@keyframes cn-pulse-p {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 10px var(--dot-color, #4ade80); }
+  50%       { transform: scale(1.35); box-shadow: 0 0 18px var(--dot-color, #4ade80); }
+}
+
+@keyframes cn-pulse-e {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.5); }
+}
+
+/* Hover for non-player nodes */
+.country-node:not(.country-node--player):hover .cn-dot { transform: scale(1.4); }
+.country-node:not(.country-node--player):hover .cn-label { color: #fff; }
+
+.map-legend {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
+  font-size: 0.65rem;
+  color: #888;
+}
+
+.legend-pip {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.legend-pip--you { background: #4ade80; box-shadow: 0 0 6px #4ade80; }
+.legend-pip--bot { background: #fb923c; box-shadow: 0 0 6px #fb923c; }
+
+/* â”€â”€ Command Centre â”€â”€ */
+.command-center { display: none; }
+
+.command-center--active {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  animation: fade-in 0.25s ease;
+}
+
+.cmd-back-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cmd-nation-hdr {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+}
+
+.cmd-flag-lg { font-size: 2rem; line-height: 1; }
+.cmd-nation-hdr h2 { margin: 0 0 2px; font-size: 1.1rem; }
+.cmd-nation-hdr p  { margin: 0; font-size: 0.72rem; color: #888; }
+
+.cmd-stats-panel {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cmd-stat__head {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 5px;
+  font-size: 0.78rem;
+}
+.cmd-stat__head span  { color: #bbb; }
+.cmd-stat__head strong { color: #fff; }
+
+.cmd-stat__bar {
   height: 7px;
-  background: rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.06);
   border-radius: 4px;
   overflow: hidden;
 }
 
-.game-stat__fill {
+.cmd-stat__fill {
   height: 100%;
   border-radius: 4px;
-  transition: width 0.4s ease;
+  transition: width 0.5s ease;
 }
 
-/* ── Player List ── */
-.player-list {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  max-height: 230px;
-  overflow-y: auto;
-}
-
-.player-list__item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
-  background: rgba(255,255,255,0.04);
-  border-radius: 8px;
-  border: 1px solid rgba(255,255,255,0.06);
-}
-
-.player-list__item--you {
-  border-color: rgba(220,38,38,0.3);
-  background: rgba(220,38,38,0.06);
-}
-
-.player-list__swatch {
-  width: 20px;
-  height: 20px;
-  border-radius: 4px;
-  flex-shrink: 0;
-  border: 1px solid rgba(255,255,255,0.12);
-}
-
-.player-list__info { flex: 1; min-width: 0; }
-
-.player-list__name {
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: #fff;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.player-list__country { font-size: 0.7rem; color: #888; }
-
-/* ── Action Buttons Grid ── */
-.game-actions {
+.cmd-actions-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 10px;
 }
 
-@media (max-width: 480px) {
-  .game-actions { grid-template-columns: repeat(2, 1fr); }
-}
-
-.game-btn {
+.cmd-action {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 5px;
-  padding: 14px 8px;
+  padding: 16px 10px;
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 10px;
+  border-radius: 12px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.18s ease;
   color: #fff;
   text-align: center;
 }
 
-.game-btn:hover:not(:disabled) {
-  border-color: rgba(220,38,38,0.5);
-  transform: translateY(-2px);
+.cmd-action--attack {
+  border-color: rgba(220,38,38,0.3);
+  background: rgba(220,38,38,0.06);
 }
 
-.game-btn--disabled { opacity: 0.38; cursor: not-allowed; }
+.cmd-action--attack:hover {
+  border-color: rgba(220,38,38,0.7);
+  background: rgba(220,38,38,0.13);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(220,38,38,0.22);
+}
 
-.game-btn__icon  { font-size: 1.4rem; display: block; }
-.game-btn__label { font-size: 0.76rem; font-weight: 600; color: #ccc; }
-.game-btn__soon  { font-size: 0.6rem; color: #666; letter-spacing: 0.04em; font-weight: 600; }
+.cmd-action--locked {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.cmd-action__icon { font-size: 1.55rem; }
+.cmd-action__name { font-size: 0.83rem; font-weight: 700; }
+.cmd-action__desc { font-size: 0.63rem; color: #888; }
+
+/* â”€â”€ Attack Strip â”€â”€ */
+.attack-strip {
+  background: rgba(28,4,4,0.96);
+  border: 1px solid rgba(220,38,38,0.45);
+  border-radius: 12px;
+  padding: 16px;
+  animation: fade-in 0.22s ease;
+}
+
+.atk-combatants {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.atk-side {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+}
+
+.atk-flag { font-size: 2rem; line-height: 1; }
+.atk-name { font-size: 0.83rem; font-weight: 700; color: #fff; }
+
+.atk-stat {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+.atk-mil { background: rgba(248,113,113,0.15); color: #f87171; }
+.atk-def { background: rgba(251,146,60,0.15);  color: #fb923c; }
+
+.atk-vs {
+  font-size: 1.6rem;
+  font-weight: 900;
+  color: #dc2626;
+  text-shadow: 0 0 20px rgba(220,38,38,0.7);
+  flex-shrink: 0;
+}
+
+.atk-odds-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  font-size: 0.78rem;
+}
+
+.atk-odds-lbl { color: #aaa; flex-shrink: 0; }
+
+.atk-odds-bar {
+  flex: 1;
+  height: 8px;
+  background: rgba(255,255,255,0.07);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.atk-odds-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #dc2626, #fbbf24);
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+
+.atk-odds-pct { font-size: 0.9rem; font-weight: 800; color: #fbbf24; flex-shrink: 0; }
+
+.atk-btns {
+  display: flex;
+  gap: 8px;
+}
+.atk-btns .btn { flex: 1; }
+
+@media (max-width: 480px) {
+  .hud-stats-row { display: none; }
+  .globe-row { flex-direction: column; text-align: center; }
+  .cmd-actions-grid { grid-template-columns: repeat(2, 1fr); }
+  .country-pick-grid { grid-template-columns: repeat(auto-fill, minmax(135px, 1fr)); }
+}

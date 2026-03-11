@@ -38,6 +38,8 @@ export class GameShell {
       pickedCountry: null,   // current player's tentative pick
       pickRegionFilter: "all",
       botCount: 5,
+      gameZoom: "world",       // "world" | "country"
+      attackTarget: null,      // country code targeted for attack
       mpLoading: false,
       /* Social */
       friendSearch: "",
@@ -190,6 +192,26 @@ export class GameShell {
         this.state.gamePhase = null;
         this.state.pickedCountry = null;
         this.state.lockedCountries = {};
+        this.state.gameZoom = "world";
+        this.state.attackTarget = null;
+        this.renderView();
+      }
+      if (action === "zoom-to-world") {
+        this.state.gameZoom = "world";
+        this.renderView();
+      }
+      if (action === "set-attack-target") {
+        const code = act.dataset.code;
+        if (code === this.worldState.selectedCountryCode) {
+          this.state.gameZoom = "country";
+          this.state.attackTarget = null;
+        } else {
+          this.state.attackTarget = this.state.attackTarget === code ? null : code;
+        }
+        this.renderView();
+      }
+      if (action === "confirm-attack") {
+        this.state.attackTarget = null;
         this.renderView();
       }
       if (action === "mp-host") {
@@ -987,7 +1009,9 @@ export class GameShell {
               <button class="country-card${isLocked ? " country-card--locked" : ""}${isSelected ? " country-card--selected" : ""}"
                 type="button" data-action="pick-country" data-code="${co.code}"
                 ${isLocked ? "disabled" : ""}>
-                <div class="country-card__swatch" style="background:${co.color}"></div>
+                <div class="country-card__swatch" style="background:${co.color}">
+                  <span class="country-card__flag-emoji">${this.getFlag(co.code)}</span>
+                </div>
                 <div class="country-card__body">
                   <div class="country-card__name">${co.name}</div>
                   <div class="country-card__capital">&#9670; ${co.capital}</div>
@@ -1034,91 +1058,202 @@ export class GameShell {
     `;
   }
 
-  /* ─── Active Game Screen ────────────────────────── */
+  /* ─── Active Game Screen — placeholder for replacement ─── */
+  /* ─── Active Game Screen — Globe + World Map ────── */
   screenGameActive() {
     const countries = this.worldState.countries;
     const playerCode = this.worldState.selectedCountryCode;
     const player = countries.find((co) => co.code === playerCode) ?? countries[0];
     const locked = this.state.lockedCountries;
     const username = this.state.currentUser?.username ?? "Player";
+    const posMap = this.getCountryPositions();
+    const isWorldView = this.state.gameZoom === "world";
+    const attackTarget = this.state.attackTarget;
+    const targetData = attackTarget ? countries.find((co) => co.code === attackTarget) : null;
+    const winOdds = targetData
+      ? Math.min(95, Math.max(5, Math.round(50 + (player.militaryScore - targetData.militaryScore))))
+      : 0;
 
-    const participants = Object.entries(locked).map(([code, name]) => ({
-      code,
-      name,
-      country: countries.find((co) => co.code === code),
-      isPlayer: name === username,
-    }));
+    const mapNodes = Object.entries(locked).map(([code, name]) => {
+      const co = countries.find((c) => c.code === code);
+      const pos = posMap[code];
+      if (!co || !pos) return "";
+      const isPlayer = name === username;
+      const isbot = name.startsWith("Bot ");
+      const isTarget = code === attackTarget;
+      let cls = "country-node";
+      if (isPlayer) cls += " country-node--player";
+      else if (isbot) cls += " country-node--bot";
+      else cls += " country-node--enemy";
+      if (isTarget) cls += " country-node--target";
+      return `
+        <button class="${cls}" type="button"
+          data-action="set-attack-target" data-code="${code}"
+          style="left:${pos.x}%;top:${pos.y}%"
+          title="${co.name}${isPlayer ? " (YOU)" : ` \u2014 ${name}`}">
+          <div class="cn-dot" style="--dot-color:${co.color}"></div>
+          <span class="cn-label">${co.name}</span>
+        </button>
+      `;
+    }).join("");
 
     return `
-      <div class="game-active">
-        <div class="game-active__header">
-          <div class="game-active__flag" style="background:${player.color}"></div>
-          <div class="game-active__info">
-            <h2>${player.name}</h2>
-            <p>${player.capital} &middot; <span class="game-active__badge">&#9679; ACTIVE MATCH</span></p>
+      <div class="world-stage">
+
+        <!-- HUD -->
+        <div class="game-hud">
+          <div class="hud-player">
+            <div class="hud-flag-wrap">
+              <div class="hud-flag-bg" style="background:${player.color}"></div>
+              <span class="hud-flag-emoji">${this.getFlag(playerCode)}</span>
+            </div>
+            <div class="hud-info">
+              <div class="hud-country-name">${player.name}</div>
+              <div class="hud-capital">&#9670; ${player.capital}</div>
+            </div>
+            <span class="hud-live-badge">&#9679; LIVE</span>
           </div>
-          <button class="btn btn--danger" type="button" data-action="surrender">&#9873; Surrender</button>
+          <div class="hud-stats-row">
+            <div class="hud-stat-item"><span class="hud-stat-lbl">ECO</span>
+              <div class="hud-mini-bar"><div class="hud-mini-fill hud-fill--eco" style="width:${player.economyScore}%"></div></div>
+              <span class="hud-stat-num">${player.economyScore}</span></div>
+            <div class="hud-stat-item"><span class="hud-stat-lbl">MIL</span>
+              <div class="hud-mini-bar"><div class="hud-mini-fill hud-fill--mil" style="width:${player.militaryScore}%"></div></div>
+              <span class="hud-stat-num">${player.militaryScore}</span></div>
+            <div class="hud-stat-item"><span class="hud-stat-lbl">STB</span>
+              <div class="hud-mini-bar"><div class="hud-mini-fill hud-fill--stb" style="width:${player.stabilityScore}%"></div></div>
+              <span class="hud-stat-num">${player.stabilityScore}</span></div>
+          </div>
+          <button class="btn btn--danger btn--sm" type="button" data-action="surrender">Surrender</button>
         </div>
 
-        <div class="game-active__panels">
-          <div class="game-active__panel">
-            <h3 class="game-active__panel-title">Your Nation</h3>
-            ${this.gameStatBar("Economy", player.economyScore, "#4ade80")}
-            ${this.gameStatBar("Military", player.militaryScore, "#f87171")}
-            ${this.gameStatBar("Stability", player.stabilityScore, "#60a5fa")}
-          </div>
-          <div class="game-active__panel">
-            <h3 class="game-active__panel-title">Match Players <span class="social-count">${participants.length}</span></h3>
-            <div class="player-list">
-              ${participants.map((p) => `
-                <div class="player-list__item${p.isPlayer ? " player-list__item--you" : ""}">
-                  <div class="player-list__swatch" style="background:${p.country?.color ?? "#666"}"></div>
-                  <div class="player-list__info">
-                    <div class="player-list__name">${p.name}${p.isPlayer ? ` <span class="social-badge social-badge--friend">YOU</span>` : ""}</div>
-                    <div class="player-list__country">${p.country?.name ?? p.code}</div>
-                  </div>
-                </div>
-              `).join("")}
+        <!-- WORLD MAP VIEW -->
+        <div class="world-view${isWorldView ? "" : " world-view--hidden"}">
+          <div class="globe-row">
+            <div class="game-globe">
+              <div class="globe-grid-spin"></div>
+              <div class="globe-atmo"></div>
+            </div>
+            <div class="globe-info">
+              <div class="globe-info__title">GLOBAL THEATRE</div>
+              <div class="globe-info__count">${Object.keys(locked).length} nations in play</div>
+              <p class="globe-info__hint">
+                Click <strong style="color:#4ade80">your nation</strong> to open the Command Centre.<br>
+                Click an <strong style="color:#f87171">enemy</strong> to select an attack target.
+              </p>
             </div>
           </div>
+          <div class="world-map-bg">
+            <div class="map-scanlines"></div>
+            <div class="radar-sweep"></div>
+            ${mapNodes}
+          </div>
+          <div class="map-legend">
+            <span class="legend-pip legend-pip--you"></span><span>You</span>
+            <span class="legend-pip legend-pip--bot"></span><span>Bot</span>
+          </div>
         </div>
 
-        <h3 class="game-active__panel-title" style="margin:20px 0 10px">Actions</h3>
-        <div class="game-actions">
-          <button class="game-btn game-btn--disabled" type="button" disabled>
-            <span class="game-btn__icon">&#9876;</span>
-            <span class="game-btn__label">Attack</span>
-            <span class="game-btn__soon">Coming Soon</span>
-          </button>
-          <button class="game-btn game-btn--disabled" type="button" disabled>
-            <span class="game-btn__icon">&#129309;</span>
-            <span class="game-btn__label">Negotiate</span>
-            <span class="game-btn__soon">Coming Soon</span>
-          </button>
-          <button class="game-btn game-btn--disabled" type="button" disabled>
-            <span class="game-btn__icon">&#127963;</span>
-            <span class="game-btn__label">Fortify</span>
-            <span class="game-btn__soon">Coming Soon</span>
-          </button>
-          <button class="game-btn game-btn--disabled" type="button" disabled>
-            <span class="game-btn__icon">&#127759;</span>
-            <span class="game-btn__label">View Map</span>
-            <span class="game-btn__soon">Coming Soon</span>
-          </button>
+        <!-- COMMAND CENTRE (zoomed in) -->
+        <div class="command-center${isWorldView ? "" : " command-center--active"}">
+          <div class="cmd-back-row">
+            <button class="btn btn--ghost" type="button" data-action="zoom-to-world">&#8592; World Map</button>
+            <div class="cmd-nation-hdr">
+              <span class="cmd-flag-lg">${this.getFlag(playerCode)}</span>
+              <div><h2>${player.name}</h2><p>${player.capital} Command Centre</p></div>
+            </div>
+          </div>
+          <div class="cmd-stats-panel">
+            ${this.cmdStatBar("Economy", player.economyScore, "#4ade80")}
+            ${this.cmdStatBar("Military", player.militaryScore, "#f87171")}
+            ${this.cmdStatBar("Stability", player.stabilityScore, "#60a5fa")}
+          </div>
+          <div class="cmd-actions-grid">
+            <button class="cmd-action cmd-action--attack" type="button" data-action="zoom-to-world">
+              <span class="cmd-action__icon">&#9876;</span>
+              <span class="cmd-action__name">Attack</span>
+              <span class="cmd-action__desc">Select target on world map</span>
+            </button>
+            <button class="cmd-action cmd-action--locked" type="button" disabled>
+              <span class="cmd-action__icon">&#129309;</span>
+              <span class="cmd-action__name">Negotiate</span>
+              <span class="cmd-action__desc">Coming Soon</span>
+            </button>
+            <button class="cmd-action cmd-action--locked" type="button" disabled>
+              <span class="cmd-action__icon">&#127963;</span>
+              <span class="cmd-action__name">Fortify</span>
+              <span class="cmd-action__desc">Coming Soon</span>
+            </button>
+            <button class="cmd-action cmd-action--locked" type="button" disabled>
+              <span class="cmd-action__icon">&#128373;</span>
+              <span class="cmd-action__name">Spy</span>
+              <span class="cmd-action__desc">Coming Soon</span>
+            </button>
+          </div>
         </div>
+
+        <!-- ATTACK PANEL (slides in when target selected) -->
+        ${targetData ? `
+          <div class="attack-strip">
+            <div class="atk-combatants">
+              <div class="atk-side atk-side--you">
+                <span class="atk-flag">${this.getFlag(playerCode)}</span>
+                <div class="atk-name">${player.name}</div>
+                <div class="atk-stat atk-mil">&#9876; MIL ${player.militaryScore}</div>
+              </div>
+              <div class="atk-vs">VS</div>
+              <div class="atk-side atk-side--enemy">
+                <span class="atk-flag">${this.getFlag(attackTarget)}</span>
+                <div class="atk-name">${targetData.name}</div>
+                <div class="atk-stat atk-def">&#127963; MIL ${targetData.militaryScore}</div>
+              </div>
+            </div>
+            <div class="atk-odds-row">
+              <span class="atk-odds-lbl">Victory Odds</span>
+              <div class="atk-odds-bar"><div class="atk-odds-fill" style="width:${winOdds}%"></div></div>
+              <span class="atk-odds-pct">${winOdds}%</span>
+            </div>
+            <div class="atk-btns">
+              <button class="btn btn--danger" type="button" data-action="confirm-attack" data-code="${attackTarget}">&#9876; Launch Attack</button>
+              <button class="btn btn--ghost" type="button" data-action="set-attack-target" data-code="${attackTarget}">Cancel</button>
+            </div>
+          </div>
+        ` : ""}
+
       </div>
     `;
   }
 
-  gameStatBar(label, score, color) {
+  getFlag(code) {
+    return [...(code ?? "").toUpperCase()].map((c) =>
+      String.fromCodePoint(0x1F1E6 + c.charCodeAt(0) - 65),
+    ).join("");
+  }
+
+  getCountryPositions() {
+    return {
+      US:{x:22,y:36}, CA:{x:19,y:22}, MX:{x:18,y:42},
+      BR:{x:29,y:58}, AR:{x:26,y:71}, CO:{x:22,y:50},
+      VE:{x:25,y:47}, PE:{x:22,y:57},
+      GB:{x:44,y:25}, FR:{x:46,y:28}, DE:{x:48,y:25},
+      IT:{x:49,y:30}, ES:{x:44,y:31}, PL:{x:51,y:24},
+      UA:{x:54,y:25}, SE:{x:50,y:19}, TR:{x:55,y:31},
+      RU:{x:67,y:20},
+      SA:{x:57,y:39}, IR:{x:60,y:31},
+      NG:{x:47,y:48}, EG:{x:53,y:36}, ZA:{x:51,y:67},
+      ET:{x:56,y:48}, CD:{x:50,y:53},
+      CN:{x:75,y:30}, IN:{x:67,y:39}, JP:{x:82,y:29},
+      KR:{x:80,y:30}, PK:{x:64,y:34}, ID:{x:77,y:53},
+      KZ:{x:63,y:25}, AU:{x:79,y:63},
+    };
+  }
+
+  cmdStatBar(label, score, color) {
     return `
-      <div class="game-stat">
-        <div class="game-stat__head">
-          <span class="game-stat__label">${label}</span>
-          <span class="game-stat__val">${score}</span>
-        </div>
-        <div class="game-stat__bar">
-          <div class="game-stat__fill" style="width:${Math.min(100, score)}%;background:${color}"></div>
+      <div class="cmd-stat">
+        <div class="cmd-stat__head"><span>${label}</span><strong>${score}</strong></div>
+        <div class="cmd-stat__bar">
+          <div class="cmd-stat__fill" style="width:${Math.min(100, score)}%;background:${color}"></div>
         </div>
       </div>
     `;
