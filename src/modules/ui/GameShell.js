@@ -43,14 +43,15 @@ export class GameShell {
       introStep: 0,            // current intro animation step
       turnNumber: 1,
       turnPhase: "strategy",   // "strategy" | "battle"
-      chatMessages: [],
-      turnTimer: 150,
-      /* Resource system */
-      gold: 50,
-      troops: 10,
-      farmsUsed: 0,     // farms done this turn (max 3)
-      recruiting: false, // animation flag
-      troopCounts: {},   // { countryCode: troopCount }
+      turnTimer: 120,
+      /* Nation data — per-nation object: { gold, groundTroops, airTroops, groundDef, airDef, farmLvl, farmsUsed } */
+      nationData: {},  // { countryCode: { ... } }
+      /* Chat system */
+      publicChat: [],        // global visible messages
+      privateChats: {},      // { countryCode: [messages] } — negotiation
+      chatInput: "",
+      privateChatTarget: null, // country code of private chat partner
+      activeTab: "army",     // "army" | "homeland" | "farm" | "chat"
       mpLoading: false,
       /* Social */
       friendSearch: "",
@@ -192,7 +193,28 @@ export class GameShell {
         }
         this.state.gamePhase = "intro";
         this.state.introStep = 0;
-        this.state.chatMessages = [];
+        this.state.turnNumber = 1;
+        this.state.turnTimer = 120;
+        this.state.publicChat = [];
+        this.state.privateChats = {};
+        this.state.privateChatTarget = null;
+        this.state.chatInput = "";
+        this.state.activeTab = "army";
+        // Initialize nation data for all participants
+        const nd = {};
+        for (const [code] of Object.entries(this.state.lockedCountries)) {
+          const co = this.worldState.countries.find((c) => c.code === code);
+          nd[code] = {
+            gold: 100,
+            groundTroops: 8 + Math.floor((co?.militaryScore ?? 50) / 15),
+            airTroops: 2 + Math.floor((co?.militaryScore ?? 50) / 30),
+            groundDef: 5 + Math.floor((co?.stabilityScore ?? 50) / 15),
+            airDef: 2 + Math.floor((co?.stabilityScore ?? 50) / 25),
+            farmLvl: 1,
+            farmsUsed: 0,
+          };
+        }
+        this.state.nationData = nd;
         this.renderView();
         this.startIntro();
       }
@@ -209,10 +231,12 @@ export class GameShell {
         this.state.gameZoom = "world";
         this.state.attackTarget = null;
         this.state.introStep = 0;
-        this.state.gold = 50;
-        this.state.troops = 10;
-        this.state.farmsUsed = 0;
-        this.state.troopCounts = {};
+        this.state.nationData = {};
+        this.state.publicChat = [];
+        this.state.privateChats = {};
+        this.state.privateChatTarget = null;
+        this.state.chatInput = "";
+        this.state.activeTab = "army";
         this.stopTurnTimer();
         this.renderView();
       }
@@ -220,10 +244,127 @@ export class GameShell {
         this.finishIntro();
       }
       if (action === "start-turn") {
+        this.state.turnPhase = "battle";
+        const pCode = this.worldState.selectedCountryCode;
+        const nd = this.state.nationData[pCode];
+        if (nd) {
+          nd.farmsUsed = 0;
+          const co = this.worldState.countries.find((c) => c.code === pCode);
+          const income = 15 + Math.floor((co?.economyScore ?? 50) / 8) + nd.farmLvl * 5;
+          nd.gold += income;
+          this.state.publicChat = [`\u2694 Turn ${this.state.turnNumber}: ${co?.name ?? pCode} receives +${income} gold`, ...this.state.publicChat].slice(0, 50);
+        }
         this.renderView();
       }
       if (action === "farm-resources") {
+        const pCode = this.worldState.selectedCountryCode;
+        const nd = this.state.nationData[pCode];
+        if (nd && nd.farmsUsed < (1 + nd.farmLvl) && this.state.turnPhase === "battle") {
+          const yield_ = 10 + nd.farmLvl * 5 + Math.floor(Math.random() * 10);
+          nd.gold += yield_;
+          nd.farmsUsed++;
+          const maxFarms = 1 + nd.farmLvl;
+          this.state.publicChat = [`\u2618 Farmed ${yield_} gold (${maxFarms - nd.farmsUsed}/${maxFarms} remaining)`, ...this.state.publicChat].slice(0, 50);
+          this.renderView();
+        }
+      }
+      if (action === "upgrade-farm") {
+        const pCode = this.worldState.selectedCountryCode;
+        const nd = this.state.nationData[pCode];
+        if (!nd) return;
+        const cost = 40 + nd.farmLvl * 20;
+        if (nd.gold >= cost) {
+          nd.gold -= cost;
+          nd.farmLvl++;
+          this.state.publicChat = [`\u{1F33E} Farm upgraded to level ${nd.farmLvl}! More income per harvest`, ...this.state.publicChat].slice(0, 50);
+          this.renderView();
+        }
+      }
+      if (action === "buy-ground-troops") {
+        const pCode = this.worldState.selectedCountryCode;
+        const nd = this.state.nationData[pCode];
+        if (nd && nd.gold >= 20) {
+          const count = 2 + Math.floor(Math.random() * 3);
+          nd.gold -= 20;
+          nd.groundTroops += count;
+          this.state.publicChat = [`\u{1F6E1} Recruited ${count} ground troops (-20g)`, ...this.state.publicChat].slice(0, 50);
+          this.renderView();
+        }
+      }
+      if (action === "buy-air-troops") {
+        const pCode = this.worldState.selectedCountryCode;
+        const nd = this.state.nationData[pCode];
+        if (nd && nd.gold >= 35) {
+          const count = 1 + Math.floor(Math.random() * 2);
+          nd.gold -= 35;
+          nd.airTroops += count;
+          this.state.publicChat = [`\u2708 Acquired ${count} air units (-35g)`, ...this.state.publicChat].slice(0, 50);
+          this.renderView();
+        }
+      }
+      if (action === "buy-ground-def") {
+        const pCode = this.worldState.selectedCountryCode;
+        const nd = this.state.nationData[pCode];
+        if (nd && nd.gold >= 25) {
+          nd.gold -= 25;
+          nd.groundDef += 3;
+          this.state.publicChat = [`\u26E8 Ground defenses reinforced +3 (-25g)`, ...this.state.publicChat].slice(0, 50);
+          this.renderView();
+        }
+      }
+      if (action === "buy-air-def") {
+        const pCode = this.worldState.selectedCountryCode;
+        const nd = this.state.nationData[pCode];
+        if (nd && nd.gold >= 30) {
+          nd.gold -= 30;
+          nd.airDef += 2;
+          this.state.publicChat = [`\u{1F6E1} Anti-air defenses +2 (-30g)`, ...this.state.publicChat].slice(0, 50);
+          this.renderView();
+        }
+      }
+      if (action === "set-tab") {
+        this.state.activeTab = act.dataset.tab;
         this.renderView();
+      }
+      if (action === "open-negotiate") {
+        const code = act.dataset.code;
+        this.state.privateChatTarget = code;
+        if (!this.state.privateChats[code]) this.state.privateChats[code] = [];
+        this.state.activeTab = "chat";
+        this.renderView();
+      }
+      if (action === "close-negotiate") {
+        this.state.privateChatTarget = null;
+        this.renderView();
+      }
+      if (action === "send-public-chat") {
+        const input = this.root.querySelector("[data-public-chat-input]");
+        const msg = (input?.value ?? "").trim().slice(0, 120);
+        if (msg) {
+          const pCode = this.worldState.selectedCountryCode;
+          const co = this.worldState.countries.find((c) => c.code === pCode);
+          this.state.publicChat = [`${this.getFlag(pCode)} ${co?.name ?? "You"}: ${msg}`, ...this.state.publicChat].slice(0, 50);
+          this.renderView();
+        }
+      }
+      if (action === "send-private-chat") {
+        const input = this.root.querySelector("[data-private-chat-input]");
+        const msg = (input?.value ?? "").trim().slice(0, 120);
+        const target = this.state.privateChatTarget;
+        if (msg && target) {
+          if (!this.state.privateChats[target]) this.state.privateChats[target] = [];
+          const pCode = this.worldState.selectedCountryCode;
+          this.state.privateChats[target] = [...this.state.privateChats[target], { from: pCode, text: msg }].slice(-30);
+          // Bot auto-replies
+          if (this.state.lockedCountries[target]?.startsWith("Bot ")) {
+            const replies = ["Interesting proposal...", "We'll consider it.", "Not a chance.", "Perhaps we can work something out.", "Our terms are final.", "Show us gold first."];
+            setTimeout(() => {
+              this.state.privateChats[target] = [...(this.state.privateChats[target] || []), { from: target, text: replies[Math.floor(Math.random() * replies.length)] }].slice(-30);
+              this.renderView();
+            }, 800 + Math.random() * 1200);
+          }
+          this.renderView();
+        }
       }
       if (action === "recruit-troops") {
         this.renderView();
@@ -246,6 +387,48 @@ export class GameShell {
         this.renderView();
       }
       if (action === "confirm-attack") {
+        const countries = this.worldState.countries;
+        const playerCode = this.worldState.selectedCountryCode;
+        const targetCode = act.dataset.code;
+        const nd = this.state.nationData;
+        const atkNd = nd[playerCode];
+        const defNd = nd[targetCode];
+        const atk = countries.find((co) => co.code === playerCode);
+        const def = countries.find((co) => co.code === targetCode);
+        if (atkNd && defNd && atk && def) {
+          // Attack power = ground troops + air troops * 2
+          const atkPower = atkNd.groundTroops + atkNd.airTroops * 2;
+          // Defense power = ground defense + air defense * 1.5 + half their troops
+          const defPower = defNd.groundDef + defNd.airDef * 1.5 + Math.floor((defNd.groundTroops + defNd.airTroops) / 2);
+          const ratio = atkPower / Math.max(1, atkPower + defPower);
+          const odds = Math.min(90, Math.max(10, Math.round(ratio * 100)));
+          const won = Math.random() * 100 < odds;
+          // Attacker losses
+          const gLoss = 1 + Math.floor(Math.random() * 3);
+          const aLoss = Math.random() < 0.4 ? 1 : 0;
+          atkNd.groundTroops = Math.max(1, atkNd.groundTroops - gLoss);
+          atkNd.airTroops = Math.max(0, atkNd.airTroops - aLoss);
+          // Defender losses
+          const dgLoss = 1 + Math.floor(Math.random() * 4);
+          const daLoss = Math.random() < 0.3 ? 1 : 0;
+          defNd.groundTroops = Math.max(0, defNd.groundTroops - dgLoss);
+          defNd.airTroops = Math.max(0, defNd.airTroops - daLoss);
+          defNd.groundDef = Math.max(0, defNd.groundDef - Math.floor(Math.random() * 2));
+          if (won) {
+            const userName = this.state.currentUser?.username ?? "Player";
+            this.state.lockedCountries[targetCode] = userName;
+            nd[targetCode] = { ...defNd, groundTroops: Math.max(2, gLoss), airTroops: aLoss, gold: Math.floor(defNd.gold / 2) };
+            this.state.publicChat = [
+              `\u2694 VICTORY! ${atk.name} conquered ${def.name}! (Odds: ${odds}%)`,
+              ...this.state.publicChat
+            ].slice(0, 50);
+          } else {
+            this.state.publicChat = [
+              `\u{1F525} REPELLED! ${atk.name} failed to take ${def.name} (Odds: ${odds}%)`,
+              ...this.state.publicChat
+            ].slice(0, 50);
+          }
+        }
         this.state.attackTarget = null;
         this.renderView();
       }
@@ -857,7 +1040,7 @@ export class GameShell {
     const username = this.state.currentUser?.username ?? "Player";
     const step = this.state.introStep;
     const isLastStep = step >= participants.length;
-    const troopCounts = this.state.troopCounts;
+    const nd = this.state.nationData;
 
     // Build the preview strip of all nations (mini flags at top)
     const flagStrip = participants.map(([code, name], i) => {
@@ -877,8 +1060,8 @@ export class GameShell {
             <p class="intro-final__desc">${participants.length} nations. One world. No mercy.</p>
             <div class="intro-final__stats-row">
               <div class="intro-final__stat"><strong>${participants.length}</strong><span>Nations</span></div>
-              <div class="intro-final__stat"><strong>${Object.values(troopCounts).reduce((a,b) => a+b, 0)}</strong><span>Total Troops</span></div>
-              <div class="intro-final__stat"><strong>${this.state.gold}</strong><span>Starting Gold</span></div>
+              <div class="intro-final__stat"><strong>${Object.values(nd).reduce((s,n) => s + n.groundTroops + n.airTroops, 0)}</strong><span>Total Troops</span></div>
+              <div class="intro-final__stat"><strong>${nd[this.worldState.selectedCountryCode]?.gold ?? 100}</strong><span>Starting Gold</span></div>
             </div>
             <button class="intro-start-btn" type="button" data-action="skip-intro">&#9876; ENTER THE BATTLEFIELD &#10132;</button>
           </div>
@@ -890,7 +1073,8 @@ export class GameShell {
     const [code, name] = participants[step];
     const co = countries.find((c) => c.code === code);
     const isPlayer = name === username;
-    const troops = troopCounts[code] || 5;
+    const nNd = nd[code] || { groundTroops: 5, airTroops: 1 };
+    const troops = nNd.groundTroops + nNd.airTroops;
     const threatLvl = (co?.militaryScore ?? 50) >= 70 ? "HIGH" : (co?.militaryScore ?? 50) >= 40 ? "MEDIUM" : "LOW";
 
     return `
@@ -947,6 +1131,129 @@ export class GameShell {
   }
 
   startTurnTimer() {
+    clearInterval(this._turnInterval);
+    this._turnInterval = setInterval(() => {
+      this.state.turnTimer--;
+      // Update timer display without full re-render
+      const timerEl = this.root.querySelector("[data-turn-timer]");
+      if (timerEl) timerEl.textContent = this.formatTimer(this.state.turnTimer);
+
+      if (this.state.turnTimer <= 0) {
+        // End of turn — bot actions + advance
+        this._runBotTurns();
+        this.state.turnNumber++;
+        this.state.turnTimer = 120;
+        this.state.turnPhase = "strategy";
+
+        // Check win/loss
+        const locked = this.state.lockedCountries;
+        const username = this.state.currentUser?.username ?? "Player";
+        const playerCode = this.worldState.selectedCountryCode;
+        const alive = Object.entries(locked);
+        const playerAlive = alive.some(([, n]) => n === username);
+        if (!playerAlive) {
+          this.state.publicChat = ["\u{1F480} YOUR NATION HAS FALLEN. DEFEAT.", ...this.state.publicChat].slice(0, 50);
+          this.stopTurnTimer();
+          this.renderView();
+          return;
+        }
+        if (alive.length === 1 && alive[0][1] === username) {
+          this.state.publicChat = ["\u{1F451} TOTAL DOMINATION! YOU WIN!", ...this.state.publicChat].slice(0, 50);
+          this.stopTurnTimer();
+          this.renderView();
+          return;
+        }
+        this.renderView();
+      }
+    }, 1000);
+  }
+
+  _runBotTurns() {
+    const countries = this.worldState.countries;
+    const locked = this.state.lockedCountries;
+    const nd = this.state.nationData;
+    const username = this.state.currentUser?.username ?? "Player";
+
+    for (const [botCode, botName] of Object.entries(locked)) {
+      if (botName === username) continue; // skip player
+      const botNd = nd[botCode];
+      if (!botNd) continue;
+      const co = countries.find((c) => c.code === botCode);
+
+      // Bot income
+      botNd.farmsUsed = 0;
+      const income = 15 + Math.floor((co?.economyScore ?? 50) / 8) + botNd.farmLvl * 5;
+      botNd.gold += income;
+
+      // Bot farms
+      const farmYield = 10 + botNd.farmLvl * 5 + Math.floor(Math.random() * 10);
+      botNd.gold += farmYield;
+      botNd.farmsUsed++;
+
+      // Bot spending: random upgrades
+      const roll = Math.random();
+      if (roll < 0.25 && botNd.gold >= 20) {
+        const ct = 2 + Math.floor(Math.random() * 3);
+        botNd.gold -= 20;
+        botNd.groundTroops += ct;
+      } else if (roll < 0.45 && botNd.gold >= 35) {
+        const ct = 1 + Math.floor(Math.random() * 2);
+        botNd.gold -= 35;
+        botNd.airTroops += ct;
+      } else if (roll < 0.60 && botNd.gold >= 25) {
+        botNd.gold -= 25;
+        botNd.groundDef += 3;
+      } else if (roll < 0.72 && botNd.gold >= 30) {
+        botNd.gold -= 30;
+        botNd.airDef += 2;
+      } else if (roll < 0.82 && botNd.gold >= (40 + botNd.farmLvl * 20)) {
+        botNd.gold -= (40 + botNd.farmLvl * 20);
+        botNd.farmLvl++;
+      }
+
+      // Bot attack (60% chance)
+      if (Math.random() < 0.6) {
+        const targets = Object.keys(locked).filter((c) => c !== botCode);
+        if (targets.length > 0) {
+          const tCode = targets[Math.floor(Math.random() * targets.length)];
+          const tNd = nd[tCode];
+          if (tNd) {
+            const atkP = botNd.groundTroops + botNd.airTroops * 2;
+            const defP = tNd.groundDef + tNd.airDef * 1.5 + (tNd.groundTroops + tNd.airTroops) / 2;
+            const odds = Math.min(90, Math.max(10, Math.round((atkP / Math.max(1, atkP + defP)) * 100)));
+            const won = Math.random() * 100 < odds;
+
+            // Attacker losses
+            botNd.groundTroops = Math.max(0, botNd.groundTroops - (1 + Math.floor(Math.random() * 3)));
+            if (Math.random() < 0.4) botNd.airTroops = Math.max(0, botNd.airTroops - 1);
+            // Defender losses
+            tNd.groundTroops = Math.max(0, tNd.groundTroops - (1 + Math.floor(Math.random() * 4)));
+            if (Math.random() < 0.3) tNd.airTroops = Math.max(0, tNd.airTroops - 1);
+            tNd.groundDef = Math.max(0, tNd.groundDef - Math.floor(Math.random() * 2));
+
+            const tCo = countries.find((c) => c.code === tCode);
+            if (won) {
+              // Conquer
+              const oldOwner = locked[tCode];
+              locked[tCode] = botName;
+              const loot = Math.floor(tNd.gold / 2);
+              botNd.gold += loot;
+              tNd.gold -= loot;
+              // Transfer minimal garrison
+              const garrison = Math.min(2, botNd.groundTroops);
+              botNd.groundTroops -= garrison;
+              tNd.groundTroops = garrison;
+              tNd.airTroops = 0;
+              tNd.groundDef = 1;
+              tNd.airDef = 0;
+              this.state.publicChat = [`\u2694 ${co?.name ?? botCode} conquered ${tCo?.name ?? tCode} (from ${oldOwner})!`, ...this.state.publicChat].slice(0, 50);
+            } else {
+              this.state.publicChat = [`\u{1F6E1} ${tCo?.name ?? tCode} repelled ${co?.name ?? botCode}'s attack!`, ...this.state.publicChat].slice(0, 50);
+            }
+          }
+        }
+      }
+    }
   }
 
   stopTurnTimer() {
@@ -1243,19 +1550,19 @@ export class GameShell {
     const targetData = attackTarget ? countries.find((co) => co.code === attackTarget) : null;
     const turnNumber = this.state.turnNumber;
     const turnPhase = this.state.turnPhase;
-    const chatMessages = this.state.chatMessages;
     const turnTimer = this.state.turnTimer;
-    const gold = this.state.gold;
-    const troops = this.state.troops;
-    const farmsUsed = this.state.farmsUsed;
-    const troopCounts = this.state.troopCounts;
+    const nd = this.state.nationData;
+    const pNd = nd[playerCode] || { gold: 0, groundTroops: 0, airTroops: 0, groundDef: 0, airDef: 0, farmLvl: 1, farmsUsed: 0 };
+    const activeTab = this.state.activeTab;
+    const publicChat = this.state.publicChat;
+    const privateChats = this.state.privateChats;
+    const privateChatTarget = this.state.privateChatTarget;
 
-    // Odds (troop-based)
-    const myTroops = troopCounts[playerCode] || 5;
-    const enemyTroops = attackTarget ? (troopCounts[attackTarget] || 5) : 0;
-    const winOdds = targetData
-      ? Math.min(92, Math.max(8, Math.round(50 * (myTroops / Math.max(1, enemyTroops)) + (player.militaryScore - targetData.militaryScore) / 5)))
-      : 0;
+    // Odds (ground/air combat)
+    const atkPower = pNd.groundTroops + pNd.airTroops * 2;
+    const tNd = attackTarget ? (nd[attackTarget] || { groundDef: 0, airDef: 0, groundTroops: 0, airTroops: 0 }) : null;
+    const defPower = tNd ? (tNd.groundDef + tNd.airDef * 1.5 + (tNd.groundTroops + tNd.airTroops) / 2) : 0;
+    const winOdds = tNd ? Math.min(90, Math.max(10, Math.round((atkPower / Math.max(1, atkPower + defPower)) * 100))) : 0;
 
     // Participants
     const participants = Object.entries(locked).map(([code, name]) => {
@@ -1264,51 +1571,105 @@ export class GameShell {
       return { code, name, co, isPlayer };
     });
 
-    // SVG world map with continent outlines (dark tactical style)
+    // SVG world map — ocean water + detailed continents with borders
     const worldSvg = `<svg class="tac-worldmap-svg" viewBox="0 0 1000 500" xmlns="http://www.w3.org/2000/svg">
-      <!-- Water -->
-      <rect fill="#0a1628" width="1000" height="500"/>
-      <!-- Continents (simplified shapes) -->
-      <g fill="#0f2318" stroke="#1a3d2a" stroke-width="0.8" opacity="0.9">
+      <defs>
+        <radialGradient id="ocean-g" cx="50%" cy="50%" r="70%">
+          <stop offset="0%" stop-color="#0d2847"/>
+          <stop offset="100%" stop-color="#061325"/>
+        </radialGradient>
+      </defs>
+      <!-- Ocean water -->
+      <rect fill="url(#ocean-g)" width="1000" height="500"/>
+      <!-- Water texture lines -->
+      <g stroke="#1a3f6e" stroke-width="0.2" opacity="0.15">
+        ${Array.from({length: 20}, (_, i) => `<path d="M0,${25*i} Q250,${25*i + (i%2?8:-8)} 500,${25*i} T1000,${25*i}" fill="none"/>`).join("")}
+      </g>
+      <!-- Continents -->
+      <g fill="#0f2318" stroke="#1a3d2a" stroke-width="0.8" opacity="0.92">
         <!-- North America -->
-        <path d="M50,40 L140,30 L200,55 L240,80 L260,120 L230,160 L210,200 L170,220 L140,200 L100,190 L80,170 L90,210 L75,230 L110,240 L120,270 L110,260 L80,280 L60,260 L50,200 L40,160 L30,120 L35,80 Z"/>
+        <path d="M45,35 L80,28 L120,25 L155,30 L190,42 L220,60 L245,82 L260,110 L258,140 L240,165 L225,185 L210,200 L185,215 L165,210 L148,195 L130,188 L110,185 L95,178 L88,195 L82,215 L90,230 L105,242 L118,260 L115,268 L100,275 L85,268 L72,255 L58,240 L48,210 L42,180 L38,150 L33,120 L35,85 L38,55 Z"/>
+        <!-- Alaska -->
+        <path d="M28,42 L42,35 L48,42 L42,55 L30,58 L22,50 Z"/>
         <!-- Greenland -->
-        <path d="M260,20 L320,15 L345,30 L340,60 L310,65 L280,50 L265,35 Z"/>
+        <path d="M255,15 L290,10 L325,12 L348,25 L350,48 L342,62 L320,68 L295,62 L272,48 L258,32 Z"/>
+        <!-- Central America -->
+        <path d="M118,260 L132,255 L148,262 L160,270 L155,278 L142,282 L128,278 L120,270 Z"/>
         <!-- South America -->
-        <path d="M175,280 L200,270 L230,275 L260,295 L280,320 L300,355 L310,400 L300,440 L280,460 L250,470 L230,455 L220,430 L210,400 L195,370 L180,340 L170,310 L165,295 Z"/>
+        <path d="M160,278 L185,272 L210,268 L235,275 L258,290 L275,310 L290,335 L302,365 L310,395 L305,425 L295,448 L278,462 L258,470 L240,465 L228,450 L222,425 L215,400 L205,375 L192,350 L180,325 L172,305 L165,290 Z"/>
         <!-- Europe -->
-        <path d="M410,50 L440,45 L470,55 L510,50 L540,60 L530,80 L540,100 L520,110 L500,105 L480,115 L460,110 L450,120 L430,115 L420,100 L410,80 Z"/>
+        <path d="M408,42 L425,38 L445,40 L462,45 L482,42 L505,45 L525,50 L542,55 L538,68 L545,82 L540,95 L528,105 L515,108 L498,102 L485,108 L472,115 L458,112 L448,118 L435,115 L425,105 L418,92 L412,75 L408,58 Z"/>
+        <!-- British Isles -->
+        <path d="M392,52 L402,48 L408,55 L405,65 L398,68 L392,62 Z"/>
+        <!-- Scandinavia -->
+        <path d="M448,18 L462,15 L472,22 L478,35 L475,48 L465,42 L455,35 L450,28 Z"/>
         <!-- Africa -->
-        <path d="M420,160 L455,150 L490,155 L520,170 L540,200 L555,240 L560,280 L550,320 L535,360 L515,390 L490,400 L460,390 L440,370 L430,340 L425,300 L420,260 L415,220 L410,190 Z"/>
+        <path d="M415,155 L438,148 L462,148 L488,152 L510,162 L530,178 L545,200 L555,228 L562,260 L560,295 L555,322 L545,350 L530,378 L512,395 L490,402 L465,398 L445,385 L432,365 L425,338 L420,308 L418,275 L415,245 L412,215 L410,185 Z"/>
+        <!-- Madagascar -->
+        <path d="M565,345 L572,340 L578,355 L575,372 L568,375 L562,362 Z"/>
         <!-- Middle East -->
-        <path d="M530,115 L570,110 L600,120 L620,140 L610,165 L585,175 L560,170 L540,155 L530,135 Z"/>
-        <!-- Russia / Eurasia -->
-        <path d="M540,25 L600,20 L680,25 L750,30 L820,38 L850,45 L840,65 L800,75 L760,70 L720,60 L680,65 L640,60 L600,65 L570,55 L555,45 Z"/>
-        <!-- South Asia -->
-        <path d="M620,170 L660,160 L690,180 L700,210 L685,240 L660,250 L640,235 L625,210 L615,190 Z"/>
-        <!-- East Asia -->
-        <path d="M700,60 L750,55 L790,70 L820,90 L830,120 L810,150 L780,160 L750,155 L730,140 L720,120 L710,95 L700,75 Z"/>
-        <!-- Southeast Asia / Indonesia -->
-        <path d="M720,220 L750,215 L780,225 L800,240 L810,260 L795,270 L770,265 L745,255 L730,240 Z"/>
+        <path d="M528,108 L555,105 L578,110 L600,118 L618,132 L622,148 L612,165 L595,175 L572,172 L555,165 L540,152 L530,135 Z"/>
+        <!-- Russia / Northern Asia -->
+        <path d="M542,20 L575,18 L610,15 L650,18 L695,22 L740,25 L780,30 L818,35 L848,42 L845,55 L838,68 L815,72 L788,68 L755,65 L722,58 L690,60 L658,62 L628,58 L600,62 L575,55 L558,45 L548,32 Z"/>
+        <!-- South/Central Asia -->
+        <path d="M618,132 L645,125 L672,135 L695,148 L710,168 L712,195 L700,218 L682,235 L660,245 L638,238 L622,218 L615,195 L612,170 Z"/>
+        <!-- India -->
+        <path d="M632,235 L652,228 L672,238 L685,258 L680,280 L665,292 L648,288 L635,272 L628,255 Z"/>
+        <!-- East Asia / China -->
+        <path d="M695,55 L728,50 L758,58 L788,72 L810,88 L825,108 L828,132 L818,155 L800,168 L775,172 L752,165 L735,148 L722,128 L712,105 L705,82 Z"/>
+        <!-- Korean Peninsula -->
+        <path d="M815,88 L825,82 L832,92 L830,108 L822,112 L815,102 Z"/>
         <!-- Japan -->
-        <path d="M840,85 L855,80 L862,95 L855,115 L845,120 L836,105 Z"/>
+        <path d="M838,78 L848,72 L858,78 L862,92 L858,108 L852,118 L845,122 L838,112 L835,95 Z"/>
+        <!-- Southeast Asia -->
+        <path d="M712,200 L735,195 L758,205 L775,218 L788,235 L798,255 L790,268 L772,272 L752,265 L735,252 L722,235 L715,218 Z"/>
+        <!-- Indonesia -->
+        <path d="M728,278 L752,272 L778,278 L802,285 L818,295 L812,305 L792,308 L768,305 L748,298 L732,290 Z"/>
+        <!-- Philippines -->
+        <path d="M798,218 L808,212 L815,222 L812,238 L805,242 L798,232 Z"/>
         <!-- Australia -->
-        <path d="M760,340 L810,330 L860,340 L880,370 L875,400 L850,420 L810,425 L775,410 L755,385 L750,360 Z"/>
+        <path d="M752,335 L788,325 L822,328 L855,338 L878,358 L885,382 L878,405 L862,422 L838,430 L810,432 L782,425 L762,408 L750,385 L748,358 Z"/>
         <!-- New Zealand -->
-        <path d="M890,410 L900,405 L905,425 L895,435 L885,425 Z"/>
+        <path d="M888,405 L898,398 L905,412 L902,428 L895,435 L888,425 Z"/>
+        <path d="M892,435 L898,432 L902,442 L898,448 L892,445 Z"/>
+        <!-- Papua New Guinea -->
+        <path d="M838,298 L858,292 L872,298 L868,312 L855,318 L842,312 Z"/>
       </g>
-      <!-- Grid lines -->
-      <g stroke="#1a3d2a" stroke-width="0.3" opacity="0.3">
-        <line x1="0" y1="250" x2="1000" y2="250"/>
-        <line x1="500" y1="0" x2="500" y2="500"/>
+      <!-- Country border detail lines -->
+      <g stroke="#2a5e3a" stroke-width="0.4" fill="none" opacity="0.5">
+        <path d="M210,200 L195,215 L165,210"/>
+        <path d="M462,148 L478,155 L488,152"/>
+        <path d="M528,108 L540,115 L555,105"/>
+        <path d="M695,148 L710,155 L712,168"/>
+        <path d="M758,58 L775,65 L788,72"/>
+        <path d="M545,200 L555,210 L562,228"/>
+        <path d="M240,165 L225,175 L225,185"/>
+        <path d="M635,238 L648,242 L660,245"/>
+        <path d="M105,242 L115,248 L118,260"/>
+        <path d="M832,92 L838,95 L838,78"/>
+      </g>
+      <!-- Latitude / longitude grid -->
+      <g stroke="#1a3d5a" stroke-width="0.25" opacity="0.2">
         <line x1="0" y1="125" x2="1000" y2="125"/>
+        <line x1="0" y1="250" x2="1000" y2="250"/>
         <line x1="0" y1="375" x2="1000" y2="375"/>
+        <line x1="0" y1="62" x2="1000" y2="62"/>
+        <line x1="0" y1="188" x2="1000" y2="188"/>
+        <line x1="0" y1="312" x2="1000" y2="312"/>
+        <line x1="0" y1="438" x2="1000" y2="438"/>
+        <line x1="125" y1="0" x2="125" y2="500"/>
         <line x1="250" y1="0" x2="250" y2="500"/>
+        <line x1="375" y1="0" x2="375" y2="500"/>
+        <line x1="500" y1="0" x2="500" y2="500"/>
+        <line x1="625" y1="0" x2="625" y2="500"/>
         <line x1="750" y1="0" x2="750" y2="500"/>
+        <line x1="875" y1="0" x2="875" y2="500"/>
       </g>
+      <!-- Equator highlight -->
+      <line x1="0" y1="250" x2="1000" y2="250" stroke="#2a6080" stroke-width="0.4" opacity="0.35" stroke-dasharray="6,4"/>
     </svg>`;
 
-    // Map territory nodes with troop counts
+    // Map territory nodes with ground + air counts
     const mapNodes = participants.map(({ code, name, co, isPlayer }) => {
       const pos = posMap[code];
       if (!co || !pos) return "";
@@ -1319,15 +1680,15 @@ export class GameShell {
       else cls += " tac-node--enemy";
       if (isTarget) cls += " tac-node--target";
       const nodeColor = isPlayer ? (player.color || "#4ade80") : (co.color ?? "#94a3b8");
-      const nodeTroops = troopCounts[code] || 0;
+      const nNd = nd[code] || { groundTroops: 0, airTroops: 0 };
       return `
         <button class="${cls}" type="button"
           data-action="set-attack-target" data-code="${code}"
           style="left:${pos.x}%;top:${pos.y}%;--nc:${nodeColor}"
-          title="${co.name}${isPlayer ? " (YOU)" : ` — ${name}`} | Troops: ${nodeTroops}">
+          title="${co.name}${isPlayer ? " (YOU)" : ` \u2014 ${name}`} | Ground: ${nNd.groundTroops} Air: ${nNd.airTroops}">
           <div class="tac-node__blob"></div>
           <span class="tac-node__flag">${this.getFlag(code)}</span>
-          <span class="tac-node__troops">${nodeTroops}</span>
+          <span class="tac-node__troops">\u{1F6E1}${nNd.groundTroops} \u2708${nNd.airTroops}</span>
           <span class="tac-node__lbl">${co.name}</span>
           ${isPlayer ? `<span class="tac-node__star">\u2605</span>` : ""}
           ${isTarget ? `<span class="tac-node__crosshair">\u2295</span>` : ""}
@@ -1335,14 +1696,10 @@ export class GameShell {
       `;
     }).join("");
 
-    // Battle log
-    const chatHtml = chatMessages.length
-      ? chatMessages.slice(0, 15).map((m) => `<div class="tac-log__msg">${m}</div>`).join("")
-      : `<div class="tac-log__msg tac-log__msg--hint">No battles yet...</div>`;
-
-    // Participants sidebar
+    // Player rows with negotiate button
     const playerRows = participants.map(({ code, name, co, isPlayer }) => {
-      const tCount = troopCounts[code] || 0;
+      const nNd = nd[code] || { groundTroops: 0, airTroops: 0, groundDef: 0, airDef: 0 };
+      const totalPower = nNd.groundTroops + nNd.airTroops * 2;
       return `
         <div class="tac-player-row${isPlayer ? " tac-player-row--you" : ""}">
           <span class="tac-player-row__flag">${this.getFlag(code)}</span>
@@ -1350,22 +1707,105 @@ export class GameShell {
             <span class="tac-player-row__name">${isPlayer ? "You" : name}</span>
             <span class="tac-player-row__territory">${co?.name ?? code}</span>
           </div>
-          <span class="tac-player-row__troops">${tCount} \u2694</span>
+          <span class="tac-player-row__troops">\u{1F6E1}${nNd.groundTroops} \u2708${nNd.airTroops}</span>
+          ${!isPlayer ? `<button class="tac-negotiate-btn" type="button" data-action="open-negotiate" data-code="${code}" title="Negotiate">\u{1F4AC}</button>` : ""}
         </div>
       `;
     }).join("");
 
-    // Count player territories
     const myTerritories = participants.filter((p) => p.isPlayer).length;
     const totalT = participants.length;
 
     const phaseLabel = turnPhase === "battle" ? "BATTLE PHASE" : "STRATEGY PHASE";
-    const phaseHint  = turnPhase === "battle"
-      ? "Attack enemies, farm resources, recruit troops"
+    const phaseHint = turnPhase === "battle"
+      ? "Attack, farm, upgrade, or negotiate"
       : "Click 'Start Turn' to begin";
-    const canFarm = turnPhase === "battle" && farmsUsed < 3;
-    const canRecruit = gold >= 15;
-    const canFortify = gold >= 20;
+
+    const maxFarms = 1 + pNd.farmLvl;
+    const farmCost = 40 + pNd.farmLvl * 20;
+    const isBattle = turnPhase === "battle";
+
+    // Tab content
+    let tabContent = "";
+    if (activeTab === "army") {
+      tabContent = `
+        <div class="tac-tab-content">
+          <div class="tac-tab-content__header">\u2694 ARMY</div>
+          <div class="tac-tab-stat-row"><span>\u{1F6E1} Ground Troops</span><strong>${pNd.groundTroops}</strong></div>
+          <div class="tac-tab-stat-row"><span>\u2708 Air Units</span><strong>${pNd.airTroops}</strong></div>
+          <div class="tac-tab-stat-row tac-tab-stat-row--total"><span>\u2694 Total Power</span><strong>${atkPower}</strong></div>
+          <div class="tac-tab-actions">
+            <button class="tac-tab-btn tac-tab-btn--ground" type="button" data-action="buy-ground-troops" ${!isBattle || pNd.gold < 20 ? "disabled" : ""}>\u{1F6E1} Buy Ground (20g) → +2-4</button>
+            <button class="tac-tab-btn tac-tab-btn--air" type="button" data-action="buy-air-troops" ${!isBattle || pNd.gold < 35 ? "disabled" : ""}>\u2708 Buy Air (35g) → +1-2</button>
+          </div>
+        </div>
+      `;
+    } else if (activeTab === "homeland") {
+      tabContent = `
+        <div class="tac-tab-content">
+          <div class="tac-tab-content__header">\u26E8 HOMELAND DEFENSE</div>
+          <div class="tac-tab-stat-row"><span>\u{1F6E1} Ground Defense</span><strong>${pNd.groundDef}</strong></div>
+          <div class="tac-tab-stat-row"><span>\u{1F6E1} Anti-Air Defense</span><strong>${pNd.airDef}</strong></div>
+          <div class="tac-tab-stat-row tac-tab-stat-row--total"><span>\u26E8 Total Defense</span><strong>${Math.round(pNd.groundDef + pNd.airDef * 1.5)}</strong></div>
+          <div class="tac-tab-actions">
+            <button class="tac-tab-btn tac-tab-btn--ground" type="button" data-action="buy-ground-def" ${!isBattle || pNd.gold < 25 ? "disabled" : ""}>\u{1F6E1} Ground Def (25g) → +3</button>
+            <button class="tac-tab-btn tac-tab-btn--air" type="button" data-action="buy-air-def" ${!isBattle || pNd.gold < 30 ? "disabled" : ""}>\u{1F6E1} Anti-Air (30g) → +2</button>
+          </div>
+        </div>
+      `;
+    } else if (activeTab === "farm") {
+      tabContent = `
+        <div class="tac-tab-content">
+          <div class="tac-tab-content__header">\u{1F33E} FARMING</div>
+          <div class="tac-tab-stat-row"><span>\u{1F33E} Farm Level</span><strong>${pNd.farmLvl}</strong></div>
+          <div class="tac-tab-stat-row"><span>\u{1F33E} Harvests Left</span><strong>${maxFarms - pNd.farmsUsed}/${maxFarms}</strong></div>
+          <div class="tac-tab-stat-row"><span>\u{1F4B0} Yield per Harvest</span><strong>~${10 + pNd.farmLvl * 5}g</strong></div>
+          <div class="tac-tab-actions">
+            <button class="tac-tab-btn tac-tab-btn--farm" type="button" data-action="farm-resources" ${!isBattle || pNd.farmsUsed >= maxFarms ? "disabled" : ""}>\u{1F33E} Harvest Gold</button>
+            <button class="tac-tab-btn tac-tab-btn--upgrade" type="button" data-action="upgrade-farm" ${!isBattle || pNd.gold < farmCost ? "disabled" : ""}>\u2B06 Upgrade Farm (${farmCost}g)</button>
+          </div>
+        </div>
+      `;
+    } else if (activeTab === "chat") {
+      const pubMsgs = publicChat.length
+        ? publicChat.slice(0, 20).map((m) => `<div class="tac-chat-msg">${m}</div>`).join("")
+        : `<div class="tac-chat-msg tac-chat-msg--hint">No messages yet...</div>`;
+      let privateSection = "";
+      if (privateChatTarget) {
+        const targetCo = countries.find((c) => c.code === privateChatTarget);
+        const pMsgs = (privateChats[privateChatTarget] || []).map((m) => {
+          const isMe = m.from === playerCode;
+          return `<div class="tac-chat-msg tac-chat-msg--${isMe ? "me" : "them"}">${this.getFlag(m.from)} ${m.text}</div>`;
+        }).join("") || `<div class="tac-chat-msg tac-chat-msg--hint">Start a negotiation...</div>`;
+        privateSection = `
+          <div class="tac-private-chat">
+            <div class="tac-private-chat__header">
+              <span>\u{1F4AC} Negotiating with ${this.getFlag(privateChatTarget)} ${targetCo?.name ?? privateChatTarget}</span>
+              <button class="tac-private-chat__close" type="button" data-action="close-negotiate">\u2715</button>
+            </div>
+            <div class="tac-private-chat__body">${pMsgs}</div>
+            <div class="tac-private-chat__input-row">
+              <input type="text" data-private-chat-input placeholder="Message..." maxlength="120" class="tac-chat-input"/>
+              <button class="tac-chat-send-btn" type="button" data-action="send-private-chat">\u27A4</button>
+            </div>
+          </div>
+        `;
+      }
+      tabContent = `
+        <div class="tac-tab-content tac-tab-content--chat">
+          <div class="tac-tab-content__header">\u{1F4AC} COMMUNICATIONS</div>
+          ${privateSection}
+          <div class="tac-public-chat">
+            <div class="tac-public-chat__header">\u{1F310} Public Chat</div>
+            <div class="tac-public-chat__body">${pubMsgs}</div>
+            <div class="tac-public-chat__input-row">
+              <input type="text" data-public-chat-input placeholder="Public message..." maxlength="120" class="tac-chat-input"/>
+              <button class="tac-chat-send-btn" type="button" data-action="send-public-chat">\u27A4</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
 
     return `
       <div class="tac-wrap">
@@ -1394,51 +1834,15 @@ export class GameShell {
         <!-- ── MAIN AREA ──────────────────────────── -->
         <div class="tac-main">
 
-          <!-- Left panel: stats + resource actions + battle log -->
+          <!-- Left panel: tabs + tab content -->
           <div class="tac-side tac-side--left">
-            <div class="tac-stat-card">
-              <div class="tac-stat-card__header">\u2694 YOUR NATION</div>
-              <div class="tac-stat-card__flag">${this.getFlag(playerCode)}</div>
-              <div class="tac-stat-card__name">${player.name}</div>
-              <div class="tac-stat-card__capital">\u25C6 ${player.capital}</div>
-              <div class="tac-mini-stats">
-                <div class="tac-mini-stat">
-                  <span class="tac-mini-stat__lbl">ECO</span>
-                  <div class="tac-mini-bar"><div class="tac-mini-bar__fill tac-mini-bar__fill--eco" style="width:${player.economyScore}%"></div></div>
-                  <span class="tac-mini-stat__val">${player.economyScore}</span>
-                </div>
-                <div class="tac-mini-stat">
-                  <span class="tac-mini-stat__lbl">MIL</span>
-                  <div class="tac-mini-bar"><div class="tac-mini-bar__fill tac-mini-bar__fill--mil" style="width:${player.militaryScore}%"></div></div>
-                  <span class="tac-mini-stat__val">${player.militaryScore}</span>
-                </div>
-                <div class="tac-mini-stat">
-                  <span class="tac-mini-stat__lbl">STB</span>
-                  <div class="tac-mini-bar"><div class="tac-mini-bar__fill tac-mini-bar__fill--stb" style="width:${player.stabilityScore}%"></div></div>
-                  <span class="tac-mini-stat__val">${player.stabilityScore}</span>
-                </div>
-              </div>
+            <div class="tac-tabs">
+              <button class="tac-tabs__btn${activeTab === "army" ? " tac-tabs__btn--active" : ""}" type="button" data-action="set-tab" data-tab="army">\u2694 Army</button>
+              <button class="tac-tabs__btn${activeTab === "homeland" ? " tac-tabs__btn--active" : ""}" type="button" data-action="set-tab" data-tab="homeland">\u26E8 Defense</button>
+              <button class="tac-tabs__btn${activeTab === "farm" ? " tac-tabs__btn--active" : ""}" type="button" data-action="set-tab" data-tab="farm">\u{1F33E} Farm</button>
+              <button class="tac-tabs__btn${activeTab === "chat" ? " tac-tabs__btn--active" : ""}" type="button" data-action="set-tab" data-tab="chat">\u{1F4AC} Chat</button>
             </div>
-
-            <!-- Resource Panel -->
-            <div class="tac-resource-panel">
-              <div class="tac-resource-panel__header">\u2618 RESOURCES</div>
-              <div class="tac-res-rows">
-                <div class="tac-res-row"><span class="tac-res-row__icon">\u{1F4B0}</span><span class="tac-res-row__lbl">Gold</span><strong class="tac-res-row__val">${gold}</strong></div>
-                <div class="tac-res-row"><span class="tac-res-row__icon">\u2694</span><span class="tac-res-row__lbl">Troops</span><strong class="tac-res-row__val">${troopCounts[playerCode] || 0}</strong></div>
-                <div class="tac-res-row"><span class="tac-res-row__icon">\u{1F33E}</span><span class="tac-res-row__lbl">Farms</span><strong class="tac-res-row__val">${3 - farmsUsed}/3</strong></div>
-              </div>
-              <div class="tac-action-btns">
-                <button class="tac-action-btn tac-action-btn--farm" type="button" data-action="farm-resources" ${!canFarm ? "disabled" : ""}>\u{1F33E} Farm (+gold)</button>
-                <button class="tac-action-btn tac-action-btn--recruit" type="button" data-action="recruit-troops" ${!canRecruit ? "disabled" : ""}>\u2694 Recruit (15g)</button>
-                <button class="tac-action-btn tac-action-btn--fortify" type="button" data-action="fortify-nation" ${!canFortify ? "disabled" : ""}>\u26E8 Fortify (20g)</button>
-              </div>
-            </div>
-
-            <div class="tac-log">
-              <div class="tac-log__header">\u{1F4DC} Battle Log</div>
-              <div class="tac-log__body">${chatHtml}</div>
-            </div>
+            ${tabContent}
           </div>
 
           <!-- Center: world map -->
@@ -1472,13 +1876,18 @@ export class GameShell {
               <div class="tac-atk-side tac-atk-side--you">
                 <span class="tac-atk-flag">${this.getFlag(playerCode)}</span>
                 <div class="tac-atk-name">${player.name}</div>
-                <div class="tac-atk-stat">\u2694 ${myTroops} troops</div>
+                <div class="tac-atk-stat">\u{1F6E1} ${pNd.groundTroops} ground</div>
+                <div class="tac-atk-stat">\u2708 ${pNd.airTroops} air</div>
+                <div class="tac-atk-stat tac-atk-stat--power">\u2694 Power: ${atkPower}</div>
               </div>
               <div class="tac-atk-vs">VS</div>
               <div class="tac-atk-side tac-atk-side--enemy">
                 <span class="tac-atk-flag">${this.getFlag(attackTarget)}</span>
                 <div class="tac-atk-name">${targetData.name}</div>
-                <div class="tac-atk-stat">\u{1F6E1} ${enemyTroops} troops</div>
+                <div class="tac-atk-stat">\u{1F6E1} ${tNd.groundDef} ground def</div>
+                <div class="tac-atk-stat">\u{1F6E1} ${tNd.airDef} anti-air</div>
+                <div class="tac-atk-stat">\u{1F6E1} ${tNd.groundTroops}+${tNd.airTroops} troops</div>
+                <div class="tac-atk-stat tac-atk-stat--power">\u26E8 Defense: ${Math.round(defPower)}</div>
               </div>
             </div>
             <div class="tac-atk-odds-row">
@@ -1487,7 +1896,7 @@ export class GameShell {
               <span class="tac-atk-odds-pct">${winOdds}%</span>
             </div>
             <div class="tac-atk-btns">
-              <button class="tac-atk-btn tac-atk-btn--launch" type="button" data-action="confirm-attack" data-code="${attackTarget}">\u2694 Launch Attack</button>
+              <button class="tac-atk-btn tac-atk-btn--launch" type="button" data-action="confirm-attack" data-code="${attackTarget}" ${!isBattle ? "disabled" : ""}>\u2694 Launch Attack</button>
               <button class="tac-atk-btn tac-atk-btn--cancel" type="button" data-action="set-attack-target" data-code="${attackTarget}">Cancel</button>
             </div>
           </div>
@@ -1497,12 +1906,20 @@ export class GameShell {
         <div class="tac-bottombar">
           <div class="tac-bottombar__left">
             <span class="tac-res-icon">\u{1F4B0}</span>
-            <span class="tac-res-val">${gold}</span>
+            <span class="tac-res-val">${pNd.gold}</span>
             <span class="tac-res-lbl">gold</span>
             <span class="tac-res-divider">\u2022</span>
-            <span class="tac-res-icon">\u2694</span>
-            <span class="tac-res-val">${troopCounts[playerCode] || 0}</span>
-            <span class="tac-res-lbl">troops</span>
+            <span class="tac-res-icon">\u{1F6E1}</span>
+            <span class="tac-res-val">${pNd.groundTroops}</span>
+            <span class="tac-res-lbl">ground</span>
+            <span class="tac-res-divider">\u2022</span>
+            <span class="tac-res-icon">\u2708</span>
+            <span class="tac-res-val">${pNd.airTroops}</span>
+            <span class="tac-res-lbl">air</span>
+            <span class="tac-res-divider">\u2022</span>
+            <span class="tac-res-icon">\u26E8</span>
+            <span class="tac-res-val">${pNd.groundDef + pNd.airDef}</span>
+            <span class="tac-res-lbl">def</span>
           </div>
           <div class="tac-bottombar__center">
             <span class="tac-turn-lbl">Turn ${turnNumber}</span>
