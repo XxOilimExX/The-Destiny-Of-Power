@@ -45,6 +45,12 @@ export class GameShell {
       turnPhase: "strategy",   // "strategy" | "battle"
       chatMessages: [],
       turnTimer: 150,
+      /* Resource system */
+      gold: 50,
+      troops: 10,
+      farmsUsed: 0,     // farms done this turn (max 3)
+      recruiting: false, // animation flag
+      troopCounts: {},   // { countryCode: troopCount }
       mpLoading: false,
       /* Social */
       friendSearch: "",
@@ -189,6 +195,15 @@ export class GameShell {
         this.state.turnNumber = 1;
         this.state.turnTimer = 150;
         this.state.chatMessages = [];
+        this.state.gold = 50;
+        this.state.troops = 10;
+        this.state.farmsUsed = 0;
+        // Initial troop distribution
+        const troopCounts = {};
+        for (const [code] of Object.entries(this.state.lockedCountries)) {
+          troopCounts[code] = 5 + Math.floor(Math.random() * 6);
+        }
+        this.state.troopCounts = troopCounts;
         this.renderView();
         this.startIntro();
       }
@@ -205,6 +220,10 @@ export class GameShell {
         this.state.gameZoom = "world";
         this.state.attackTarget = null;
         this.state.introStep = 0;
+        this.state.gold = 50;
+        this.state.troops = 10;
+        this.state.farmsUsed = 0;
+        this.state.troopCounts = {};
         this.stopTurnTimer();
         this.renderView();
       }
@@ -213,7 +232,45 @@ export class GameShell {
       }
       if (action === "start-turn") {
         this.state.turnPhase = "battle";
+        this.state.farmsUsed = 0;
+        // Income per turn
+        const pCode = this.worldState.selectedCountryCode;
+        const pCountry = this.worldState.countries.find((co) => co.code === pCode);
+        const income = 10 + Math.floor((pCountry?.economyScore ?? 50) / 10);
+        this.state.gold += income;
+        this.state.chatMessages = [`\u2694 Turn ${this.state.turnNumber}: +${income} gold income`, ...this.state.chatMessages].slice(0, 30);
         this.renderView();
+      }
+      if (action === "farm-resources") {
+        if (this.state.farmsUsed < 3 && this.state.turnPhase === "battle") {
+          const yield_ = 8 + Math.floor(Math.random() * 12);
+          this.state.gold += yield_;
+          this.state.farmsUsed++;
+          this.state.chatMessages = [`\u2618 Farmed ${yield_} gold (${3 - this.state.farmsUsed} farms left)`, ...this.state.chatMessages].slice(0, 30);
+          this.renderView();
+        }
+      }
+      if (action === "recruit-troops") {
+        const cost = 15;
+        if (this.state.gold >= cost) {
+          const count = 2 + Math.floor(Math.random() * 3);
+          this.state.gold -= cost;
+          this.state.troops += count;
+          const myCode = this.worldState.selectedCountryCode;
+          this.state.troopCounts[myCode] = (this.state.troopCounts[myCode] || 0) + count;
+          this.state.chatMessages = [`\u2694 Recruited ${count} troops for ${cost} gold`, ...this.state.chatMessages].slice(0, 30);
+          this.renderView();
+        }
+      }
+      if (action === "fortify-nation") {
+        const cost = 20;
+        if (this.state.gold >= cost) {
+          this.state.gold -= cost;
+          const myCode = this.worldState.selectedCountryCode;
+          this.state.troopCounts[myCode] = (this.state.troopCounts[myCode] || 0) + 3;
+          this.state.chatMessages = [`\u26E8 Fortified defenses! +3 garrison troops`, ...this.state.chatMessages].slice(0, 30);
+          this.renderView();
+        }
       }
       if (action === "zoom-to-world") {
         this.state.gameZoom = "world";
@@ -230,19 +287,37 @@ export class GameShell {
         this.renderView();
       }
       if (action === "confirm-attack") {
-        // Roll the dice
         const countries = this.worldState.countries;
         const playerCode = this.worldState.selectedCountryCode;
         const player = countries.find((co) => co.code === playerCode);
-        const target = countries.find((co) => co.code === act.dataset.code);
+        const targetCode = act.dataset.code;
+        const target = countries.find((co) => co.code === targetCode);
         if (player && target) {
-          const odds = Math.min(95, Math.max(5, Math.round(50 + (player.militaryScore - target.militaryScore))));
+          const myTroops = this.state.troopCounts[playerCode] || 5;
+          const enemyTroops = this.state.troopCounts[targetCode] || 5;
+          const milBonus = (player.militaryScore - target.militaryScore) / 100;
+          const troopRatio = myTroops / Math.max(1, enemyTroops);
+          const odds = Math.min(92, Math.max(8, Math.round(50 * troopRatio + milBonus * 20)));
           const won = Math.random() * 100 < odds;
-          const msg = won
-            ? `&#9876; ${player.name} attacked ${target.name} — VICTORY!`
-            : `&#128293; ${player.name} attacked ${target.name} — REPELLED!`;
-          this.state.chatMessages = [msg, ...this.state.chatMessages].slice(0, 20);
-          if (won) delete this.state.lockedCountries[act.dataset.code];
+          // Losses
+          const atkLoss = 1 + Math.floor(Math.random() * 3);
+          const defLoss = 1 + Math.floor(Math.random() * 4);
+          this.state.troopCounts[playerCode] = Math.max(1, myTroops - atkLoss);
+          this.state.troopCounts[targetCode] = Math.max(0, enemyTroops - defLoss);
+          if (won) {
+            const userName = this.state.currentUser?.username ?? "Player";
+            this.state.lockedCountries[targetCode] = userName;
+            this.state.troopCounts[targetCode] = Math.max(1, Math.floor(atkLoss));
+            this.state.chatMessages = [
+              `\u2694 VICTORY! ${player.name} conquered ${target.name}! (-${atkLoss} troops)`,
+              ...this.state.chatMessages
+            ].slice(0, 30);
+          } else {
+            this.state.chatMessages = [
+              `\u{1F525} REPELLED! ${player.name} failed to take ${target.name} (-${atkLoss} troops)`,
+              ...this.state.chatMessages
+            ].slice(0, 30);
+          }
         }
         this.state.attackTarget = null;
         this.renderView();
@@ -827,16 +902,18 @@ export class GameShell {
   /* ─── Cinematic Intro Methods ───────────────────── */
   startIntro() {
     const participants = Object.entries(this.state.lockedCountries);
-    const total = participants.length + 2; // steps = each player + "Prepare for war" + "Start"
+    const total = participants.length + 1; // each player + final "PREPARE FOR WAR"
     this.state.introStep = 0;
+    this.renderView();
     const advance = () => {
       this.state.introStep++;
       this.renderView();
-      if (this.state.introStep < total - 1) {
-        this._introTimer = setTimeout(advance, 1800);
+      if (this.state.introStep < total) {
+        const isLast = this.state.introStep === total - 1;
+        this._introTimer = setTimeout(advance, isLast ? 999999 : 2600);
       }
     };
-    this._introTimer = setTimeout(advance, 800);
+    this._introTimer = setTimeout(advance, 1200);
   }
 
   finishIntro() {
@@ -853,16 +930,32 @@ export class GameShell {
     const username = this.state.currentUser?.username ?? "Player";
     const step = this.state.introStep;
     const isLastStep = step >= participants.length;
+    const troopCounts = this.state.troopCounts;
+
+    // Build the preview strip of all nations (mini flags at top)
+    const flagStrip = participants.map(([code, name], i) => {
+      const done = i < step;
+      const active = i === step;
+      return `<span class="intro-strip__flag ${done ? "intro-strip__flag--done" : ""} ${active ? "intro-strip__flag--active" : ""}">${this.getFlag(code)}</span>`;
+    }).join("");
 
     if (isLastStep) {
       return `
         <div class="intro-stage intro-stage--final">
+          <div class="intro-strip">${flagStrip}</div>
           <div class="intro-final">
-            <div class="intro-final__subtitle">THE DESTINY OF POWER</div>
+            <div class="intro-final__tagline">THE DESTINY OF POWER</div>
+            <div class="intro-final__separator"></div>
             <h1 class="intro-final__title">PREPARE FOR WAR</h1>
-            <p class="intro-final__desc">All nations have been assigned. The world watches in silence.</p>
-            <button class="btn intro-start-btn" type="button" data-action="skip-intro">&#9876; Start Battle &#10132;</button>
+            <p class="intro-final__desc">${participants.length} nations. One world. No mercy.</p>
+            <div class="intro-final__stats-row">
+              <div class="intro-final__stat"><strong>${participants.length}</strong><span>Nations</span></div>
+              <div class="intro-final__stat"><strong>${Object.values(troopCounts).reduce((a,b) => a+b, 0)}</strong><span>Total Troops</span></div>
+              <div class="intro-final__stat"><strong>${this.state.gold}</strong><span>Starting Gold</span></div>
+            </div>
+            <button class="intro-start-btn" type="button" data-action="skip-intro">&#9876; ENTER THE BATTLEFIELD &#10132;</button>
           </div>
+          <button class="intro-skip" type="button" data-action="skip-intro">Skip &#10132;</button>
         </div>
       `;
     }
@@ -870,26 +963,58 @@ export class GameShell {
     const [code, name] = participants[step];
     const co = countries.find((c) => c.code === code);
     const isPlayer = name === username;
+    const troops = troopCounts[code] || 5;
+    const threatLvl = (co?.militaryScore ?? 50) >= 70 ? "HIGH" : (co?.militaryScore ?? 50) >= 40 ? "MEDIUM" : "LOW";
 
     return `
-      <div class="intro-stage">
+      <div class="intro-stage" style="--card-accent:${co?.color ?? '#888'}">
+        <div class="intro-strip">${flagStrip}</div>
         <div class="intro-step-count">${step + 1} / ${participants.length}</div>
-        <div class="intro-card ${isPlayer ? "intro-card--player" : "intro-card--bot"}">
-          <div class="intro-card__flag">${this.getFlag(code)}</div>
-          <div class="intro-card__color-bar" style="background:${co?.color ?? "#666"}"></div>
-          <div class="intro-card__info">
-            <div class="intro-card__role">${isPlayer ? "&#9733; YOUR NATION" : "OPPONENT "+(step+1)}</div>
+
+        <div class="intro-reveal">
+          <div class="intro-reveal__bg" style="background: radial-gradient(circle at 50% 50%, ${co?.color ?? '#333'}33 0%, transparent 70%)"></div>
+
+          <div class="intro-card ${isPlayer ? "intro-card--player" : "intro-card--bot"}" style="--card-color:${co?.color ?? '#666'}">
+            <div class="intro-card__top-strip">
+              <span class="intro-card__role-badge">${isPlayer ? "&#9733; YOUR NATION" : `OPPONENT ${step + 1}`}</span>
+              <span class="intro-card__threat">THREAT: ${isPlayer ? "—" : threatLvl}</span>
+            </div>
+
+            <div class="intro-card__flag">${this.getFlag(code)}</div>
+
             <h1 class="intro-card__country">${co?.name ?? code}</h1>
-            <p class="intro-card__player">${name}</p>
-            <p class="intro-card__capital">&#9670; ${co?.capital ?? ""}</p>
+            <p class="intro-card__player">${isPlayer ? `Commander ${name}` : name}</p>
+            <p class="intro-card__capital">&#9670; Capital: ${co?.capital ?? "Unknown"}</p>
+
+            <div class="intro-card__divider"></div>
+
             <div class="intro-card__stats">
-              <div class="intro-stat"><span>ECO</span><strong>${co?.economyScore ?? 0}</strong></div>
-              <div class="intro-stat"><span>MIL</span><strong>${co?.militaryScore ?? 0}</strong></div>
-              <div class="intro-stat"><span>STB</span><strong>${co?.stabilityScore ?? 0}</strong></div>
+              <div class="intro-stat">
+                <span class="intro-stat__icon">&#128176;</span>
+                <div class="intro-stat__info"><span class="intro-stat__lbl">ECONOMY</span><strong class="intro-stat__val">${co?.economyScore ?? 0}</strong></div>
+                <div class="intro-stat__bar"><div class="intro-stat__fill intro-stat__fill--eco" style="width:${co?.economyScore ?? 0}%"></div></div>
+              </div>
+              <div class="intro-stat">
+                <span class="intro-stat__icon">&#9876;</span>
+                <div class="intro-stat__info"><span class="intro-stat__lbl">MILITARY</span><strong class="intro-stat__val">${co?.militaryScore ?? 0}</strong></div>
+                <div class="intro-stat__bar"><div class="intro-stat__fill intro-stat__fill--mil" style="width:${co?.militaryScore ?? 0}%"></div></div>
+              </div>
+              <div class="intro-stat">
+                <span class="intro-stat__icon">&#127963;</span>
+                <div class="intro-stat__info"><span class="intro-stat__lbl">STABILITY</span><strong class="intro-stat__val">${co?.stabilityScore ?? 0}</strong></div>
+                <div class="intro-stat__bar"><div class="intro-stat__fill intro-stat__fill--stb" style="width:${co?.stabilityScore ?? 0}%"></div></div>
+              </div>
+            </div>
+
+            <div class="intro-card__troops">
+              <span class="intro-card__troops-icon">&#9816;</span>
+              <span class="intro-card__troops-count">${troops}</span>
+              <span class="intro-card__troops-label">Starting Troops</span>
             </div>
           </div>
         </div>
-        <button class="btn btn--ghost intro-skip" type="button" data-action="skip-intro">Skip &#10132;</button>
+
+        <button class="intro-skip" type="button" data-action="skip-intro">Skip &#10132;</button>
       </div>
     `;
   }
@@ -902,23 +1027,50 @@ export class GameShell {
         this.state.turnTimer = 150;
         this.state.turnNumber++;
         this.state.turnPhase = "strategy";
-        // Simple bot logic
+        this.state.farmsUsed = 0;
+        // Bot AI: each bot gets resources & may attack
         const c = this.worldState.countries;
         const locked = this.state.lockedCountries;
-        const playerCode = this.worldState.selectedCountryCode;
         const username = this.state.currentUser?.username ?? "Player";
-        const enemies = Object.entries(locked).filter(([code, name]) => name !== username);
-        if (enemies.length > 0) {
-          const [attacker] = enemies[Math.floor(Math.random() * enemies.length)];
-          const [defender] = Object.keys(locked).filter((code) => code !== attacker);
-          if (defender) {
-            const atk = c.find((co) => co.code === attacker);
-            const def = c.find((co) => co.code === defender);
-            if (atk && def) {
-              const msg = `&#9876; ${atk.name} attacked ${def.name}`;
-              this.state.chatMessages = [msg, ...this.state.chatMessages].slice(0, 20);
+        const bots = Object.entries(locked).filter(([, name]) => name.startsWith("Bot "));
+        for (const [botCode, botName] of bots) {
+          // Bots earn income & recruit
+          this.state.troopCounts[botCode] = (this.state.troopCounts[botCode] || 5) + 2;
+          // Try to attack a random enemy
+          const targets = Object.entries(locked).filter(([code, name]) => code !== botCode && name !== botName);
+          if (targets.length > 0 && Math.random() < 0.6) {
+            const [defCode, defOwner] = targets[Math.floor(Math.random() * targets.length)];
+            const atk = c.find((co) => co.code === botCode);
+            const def = c.find((co) => co.code === defCode);
+            const atkTroops = this.state.troopCounts[botCode] || 5;
+            const defTroops = this.state.troopCounts[defCode] || 5;
+            const won = Math.random() < (atkTroops / (atkTroops + defTroops));
+            this.state.troopCounts[botCode] = Math.max(1, atkTroops - 1 - Math.floor(Math.random() * 2));
+            this.state.troopCounts[defCode] = Math.max(0, defTroops - 1 - Math.floor(Math.random() * 2));
+            if (won && atk && def) {
+              this.state.lockedCountries[defCode] = botName;
+              this.state.troopCounts[defCode] = 1 + Math.floor(Math.random() * 2);
+              this.state.chatMessages = [
+                `\u2694 ${atk.name} (${botName}) conquered ${def.name}!`,
+                ...this.state.chatMessages,
+              ].slice(0, 30);
+            } else if (atk && def) {
+              this.state.chatMessages = [
+                `\u{1F6E1} ${def.name} repelled ${atk.name}'s attack`,
+                ...this.state.chatMessages,
+              ].slice(0, 30);
             }
           }
+        }
+        // Check win/loss
+        const playerTerritories = Object.entries(locked).filter(([, n]) => n === username);
+        const totalTerritories = Object.keys(locked).length;
+        if (playerTerritories.length === 0) {
+          this.state.chatMessages = ["\u{1F480} DEFEAT — You have been eliminated!", ...this.state.chatMessages];
+          this.stopTurnTimer();
+        } else if (playerTerritories.length === totalTerritories) {
+          this.state.chatMessages = ["\u{1F451} VICTORY — You conquered the entire world!", ...this.state.chatMessages];
+          this.stopTurnTimer();
         }
       }
       // Update timer display without full re-render
@@ -1221,23 +1373,74 @@ export class GameShell {
     const posMap = this.getCountryPositions();
     const attackTarget = this.state.attackTarget;
     const targetData = attackTarget ? countries.find((co) => co.code === attackTarget) : null;
-    const winOdds = targetData
-      ? Math.min(95, Math.max(5, Math.round(50 + (player.militaryScore - targetData.militaryScore))))
-      : 0;
     const turnNumber = this.state.turnNumber;
     const turnPhase = this.state.turnPhase;
     const chatMessages = this.state.chatMessages;
     const turnTimer = this.state.turnTimer;
-    const resources = Math.floor(player.economyScore * 1.5);
+    const gold = this.state.gold;
+    const troops = this.state.troops;
+    const farmsUsed = this.state.farmsUsed;
+    const troopCounts = this.state.troopCounts;
 
-    // Build participant list for side panel
+    // Odds (troop-based)
+    const myTroops = troopCounts[playerCode] || 5;
+    const enemyTroops = attackTarget ? (troopCounts[attackTarget] || 5) : 0;
+    const winOdds = targetData
+      ? Math.min(92, Math.max(8, Math.round(50 * (myTroops / Math.max(1, enemyTroops)) + (player.militaryScore - targetData.militaryScore) / 5)))
+      : 0;
+
+    // Participants
     const participants = Object.entries(locked).map(([code, name]) => {
       const co = countries.find((c) => c.code === code);
       const isPlayer = name === username;
       return { code, name, co, isPlayer };
     });
 
-    // Build map territory nodes
+    // SVG world map with continent outlines (dark tactical style)
+    const worldSvg = `<svg class="tac-worldmap-svg" viewBox="0 0 1000 500" xmlns="http://www.w3.org/2000/svg">
+      <!-- Water -->
+      <rect fill="#0a1628" width="1000" height="500"/>
+      <!-- Continents (simplified shapes) -->
+      <g fill="#0f2318" stroke="#1a3d2a" stroke-width="0.8" opacity="0.9">
+        <!-- North America -->
+        <path d="M50,40 L140,30 L200,55 L240,80 L260,120 L230,160 L210,200 L170,220 L140,200 L100,190 L80,170 L90,210 L75,230 L110,240 L120,270 L110,260 L80,280 L60,260 L50,200 L40,160 L30,120 L35,80 Z"/>
+        <!-- Greenland -->
+        <path d="M260,20 L320,15 L345,30 L340,60 L310,65 L280,50 L265,35 Z"/>
+        <!-- South America -->
+        <path d="M175,280 L200,270 L230,275 L260,295 L280,320 L300,355 L310,400 L300,440 L280,460 L250,470 L230,455 L220,430 L210,400 L195,370 L180,340 L170,310 L165,295 Z"/>
+        <!-- Europe -->
+        <path d="M410,50 L440,45 L470,55 L510,50 L540,60 L530,80 L540,100 L520,110 L500,105 L480,115 L460,110 L450,120 L430,115 L420,100 L410,80 Z"/>
+        <!-- Africa -->
+        <path d="M420,160 L455,150 L490,155 L520,170 L540,200 L555,240 L560,280 L550,320 L535,360 L515,390 L490,400 L460,390 L440,370 L430,340 L425,300 L420,260 L415,220 L410,190 Z"/>
+        <!-- Middle East -->
+        <path d="M530,115 L570,110 L600,120 L620,140 L610,165 L585,175 L560,170 L540,155 L530,135 Z"/>
+        <!-- Russia / Eurasia -->
+        <path d="M540,25 L600,20 L680,25 L750,30 L820,38 L850,45 L840,65 L800,75 L760,70 L720,60 L680,65 L640,60 L600,65 L570,55 L555,45 Z"/>
+        <!-- South Asia -->
+        <path d="M620,170 L660,160 L690,180 L700,210 L685,240 L660,250 L640,235 L625,210 L615,190 Z"/>
+        <!-- East Asia -->
+        <path d="M700,60 L750,55 L790,70 L820,90 L830,120 L810,150 L780,160 L750,155 L730,140 L720,120 L710,95 L700,75 Z"/>
+        <!-- Southeast Asia / Indonesia -->
+        <path d="M720,220 L750,215 L780,225 L800,240 L810,260 L795,270 L770,265 L745,255 L730,240 Z"/>
+        <!-- Japan -->
+        <path d="M840,85 L855,80 L862,95 L855,115 L845,120 L836,105 Z"/>
+        <!-- Australia -->
+        <path d="M760,340 L810,330 L860,340 L880,370 L875,400 L850,420 L810,425 L775,410 L755,385 L750,360 Z"/>
+        <!-- New Zealand -->
+        <path d="M890,410 L900,405 L905,425 L895,435 L885,425 Z"/>
+      </g>
+      <!-- Grid lines -->
+      <g stroke="#1a3d2a" stroke-width="0.3" opacity="0.3">
+        <line x1="0" y1="250" x2="1000" y2="250"/>
+        <line x1="500" y1="0" x2="500" y2="500"/>
+        <line x1="0" y1="125" x2="1000" y2="125"/>
+        <line x1="0" y1="375" x2="1000" y2="375"/>
+        <line x1="250" y1="0" x2="250" y2="500"/>
+        <line x1="750" y1="0" x2="750" y2="500"/>
+      </g>
+    </svg>`;
+
+    // Map territory nodes with troop counts
     const mapNodes = participants.map(({ code, name, co, isPlayer }) => {
       const pos = posMap[code];
       if (!co || !pos) return "";
@@ -1247,40 +1450,54 @@ export class GameShell {
       else if (name.startsWith("Bot ")) cls += " tac-node--bot";
       else cls += " tac-node--enemy";
       if (isTarget) cls += " tac-node--target";
-      const botIndex = name.startsWith("Bot ") ? parseInt(name.replace("Bot ", "")) || 1 : 0;
-      const nodeColor = isPlayer ? player.color : (co.color ?? `hsl(${botIndex * 60},65%,45%)`);
+      const nodeColor = isPlayer ? (player.color || "#4ade80") : (co.color ?? "#94a3b8");
+      const nodeTroops = troopCounts[code] || 0;
       return `
         <button class="${cls}" type="button"
           data-action="set-attack-target" data-code="${code}"
           style="left:${pos.x}%;top:${pos.y}%;--nc:${nodeColor}"
-          title="${co.name}${isPlayer ? " (YOU)" : ` — ${name}`}">
+          title="${co.name}${isPlayer ? " (YOU)" : ` — ${name}`} | Troops: ${nodeTroops}">
           <div class="tac-node__blob"></div>
           <span class="tac-node__flag">${this.getFlag(code)}</span>
+          <span class="tac-node__troops">${nodeTroops}</span>
           <span class="tac-node__lbl">${co.name}</span>
-          ${isPlayer ? `<span class="tac-node__star">★</span>` : ""}
-          ${isTarget ? `<span class="tac-node__crosshair">⊕</span>` : ""}
+          ${isPlayer ? `<span class="tac-node__star">\u2605</span>` : ""}
+          ${isTarget ? `<span class="tac-node__crosshair">\u2295</span>` : ""}
         </button>
       `;
     }).join("");
 
-    // Battle log messages
+    // Battle log
     const chatHtml = chatMessages.length
-      ? chatMessages.slice(-12).map((m) => `<div class="tac-log__msg">${m}</div>`).join("")
-      : `<div class="tac-log__msg tac-log__msg--hint">Waiting for action...</div>`;
+      ? chatMessages.slice(0, 15).map((m) => `<div class="tac-log__msg">${m}</div>`).join("")
+      : `<div class="tac-log__msg tac-log__msg--hint">No battles yet...</div>`;
 
-    // Participants sidebar rows
-    const playerRows = participants.map(({ code, name, co, isPlayer }) => `
-      <div class="tac-player-row${isPlayer ? " tac-player-row--you" : ""}">
-        <span class="tac-player-row__flag">${this.getFlag(code)}</span>
-        <span class="tac-player-row__name">${isPlayer ? "You" : name}</span>
-        <span class="tac-player-row__territory">${co?.name ?? code}</span>
-      </div>
-    `).join("");
+    // Participants sidebar
+    const playerRows = participants.map(({ code, name, co, isPlayer }) => {
+      const tCount = troopCounts[code] || 0;
+      return `
+        <div class="tac-player-row${isPlayer ? " tac-player-row--you" : ""}">
+          <span class="tac-player-row__flag">${this.getFlag(code)}</span>
+          <div class="tac-player-row__info">
+            <span class="tac-player-row__name">${isPlayer ? "You" : name}</span>
+            <span class="tac-player-row__territory">${co?.name ?? code}</span>
+          </div>
+          <span class="tac-player-row__troops">${tCount} \u2694</span>
+        </div>
+      `;
+    }).join("");
+
+    // Count player territories
+    const myTerritories = participants.filter((p) => p.isPlayer).length;
+    const totalT = participants.length;
 
     const phaseLabel = turnPhase === "battle" ? "BATTLE PHASE" : "STRATEGY PHASE";
     const phaseHint  = turnPhase === "battle"
-      ? "Select an enemy territory to attack"
-      : "Click 'Start Turn' to begin your move";
+      ? "Attack enemies, farm resources, recruit troops"
+      : "Click 'Start Turn' to begin";
+    const canFarm = turnPhase === "battle" && farmsUsed < 3;
+    const canRecruit = gold >= 15;
+    const canFortify = gold >= 20;
 
     return `
       <div class="tac-wrap">
@@ -1294,30 +1511,28 @@ export class GameShell {
               <div class="tac-player-info__nation">${player.name}</div>
             </div>
           </div>
-
           <div class="tac-topbar__center">
             <div class="tac-phase-banner tac-phase-banner--${turnPhase}">
               <span class="tac-phase-banner__label">${phaseLabel}</span>
               <span class="tac-phase-banner__hint">${phaseHint}</span>
             </div>
-            <div class="tac-turn-badge">Turn ${turnNumber}</div>
+            <div class="tac-turn-badge">Turn ${turnNumber} \u2022 ${myTerritories}/${totalT} territories</div>
           </div>
-
           <div class="tac-topbar__right">
-            <button class="tac-surrender-btn" type="button" data-action="surrender">&#9873; Surrender</button>
+            <button class="tac-surrender-btn" type="button" data-action="surrender">\u2691 Surrender</button>
           </div>
         </div>
 
         <!-- ── MAIN AREA ──────────────────────────── -->
         <div class="tac-main">
 
-          <!-- Left panel: stats + battle log -->
+          <!-- Left panel: stats + resource actions + battle log -->
           <div class="tac-side tac-side--left">
             <div class="tac-stat-card">
-              <div class="tac-stat-card__header">YOUR NATION</div>
+              <div class="tac-stat-card__header">\u2694 YOUR NATION</div>
               <div class="tac-stat-card__flag">${this.getFlag(playerCode)}</div>
               <div class="tac-stat-card__name">${player.name}</div>
-              <div class="tac-stat-card__capital">&#9670; ${player.capital}</div>
+              <div class="tac-stat-card__capital">\u25C6 ${player.capital}</div>
               <div class="tac-mini-stats">
                 <div class="tac-mini-stat">
                   <span class="tac-mini-stat__lbl">ECO</span>
@@ -1335,52 +1550,67 @@ export class GameShell {
                   <span class="tac-mini-stat__val">${player.stabilityScore}</span>
                 </div>
               </div>
-              <div class="tac-resources">&#9830; ${resources} res</div>
+            </div>
+
+            <!-- Resource Panel -->
+            <div class="tac-resource-panel">
+              <div class="tac-resource-panel__header">\u2618 RESOURCES</div>
+              <div class="tac-res-rows">
+                <div class="tac-res-row"><span class="tac-res-row__icon">\u{1F4B0}</span><span class="tac-res-row__lbl">Gold</span><strong class="tac-res-row__val">${gold}</strong></div>
+                <div class="tac-res-row"><span class="tac-res-row__icon">\u2694</span><span class="tac-res-row__lbl">Troops</span><strong class="tac-res-row__val">${troopCounts[playerCode] || 0}</strong></div>
+                <div class="tac-res-row"><span class="tac-res-row__icon">\u{1F33E}</span><span class="tac-res-row__lbl">Farms</span><strong class="tac-res-row__val">${3 - farmsUsed}/3</strong></div>
+              </div>
+              <div class="tac-action-btns">
+                <button class="tac-action-btn tac-action-btn--farm" type="button" data-action="farm-resources" ${!canFarm ? "disabled" : ""}>\u{1F33E} Farm (+gold)</button>
+                <button class="tac-action-btn tac-action-btn--recruit" type="button" data-action="recruit-troops" ${!canRecruit ? "disabled" : ""}>\u2694 Recruit (15g)</button>
+                <button class="tac-action-btn tac-action-btn--fortify" type="button" data-action="fortify-nation" ${!canFortify ? "disabled" : ""}>\u26E8 Fortify (20g)</button>
+              </div>
             </div>
 
             <div class="tac-log">
-              <div class="tac-log__header">&#128196; Battle Log</div>
+              <div class="tac-log__header">\u{1F4DC} Battle Log</div>
               <div class="tac-log__body">${chatHtml}</div>
             </div>
           </div>
 
-          <!-- Center: tactical map -->
+          <!-- Center: world map -->
           <div class="tac-map-area">
             <div class="tac-map-bg">
+              ${worldSvg}
               <div class="tac-map__scanlines"></div>
-              <div class="tac-map__grid"></div>
               ${mapNodes}
             </div>
             <div class="tac-map-legend">
               <span class="tac-legend-pip tac-legend-pip--you"></span><span>You</span>
               <span class="tac-legend-pip tac-legend-pip--bot"></span><span>Bot</span>
+              <span class="tac-legend-pip tac-legend-pip--enemy"></span><span>Enemy</span>
             </div>
           </div>
 
-          <!-- Right panel: players list -->
+          <!-- Right panel: players -->
           <div class="tac-side tac-side--right">
             <div class="tac-players-panel">
-              <div class="tac-players-panel__header">&#9876; NATIONS</div>
+              <div class="tac-players-panel__header">\u2694 NATIONS IN PLAY</div>
               ${playerRows}
             </div>
           </div>
 
-        </div><!-- /.tac-main -->
+        </div>
 
         <!-- ── ATTACK PANEL ───────────────────────── -->
-        ${targetData ? `
+        ${targetData && locked[attackTarget] !== username ? `
           <div class="tac-attack-panel">
             <div class="tac-attack-panel__combatants">
               <div class="tac-atk-side tac-atk-side--you">
                 <span class="tac-atk-flag">${this.getFlag(playerCode)}</span>
                 <div class="tac-atk-name">${player.name}</div>
-                <div class="tac-atk-stat">&#9876; MIL ${player.militaryScore}</div>
+                <div class="tac-atk-stat">\u2694 ${myTroops} troops</div>
               </div>
               <div class="tac-atk-vs">VS</div>
               <div class="tac-atk-side tac-atk-side--enemy">
                 <span class="tac-atk-flag">${this.getFlag(attackTarget)}</span>
                 <div class="tac-atk-name">${targetData.name}</div>
-                <div class="tac-atk-stat">&#127963; MIL ${targetData.militaryScore}</div>
+                <div class="tac-atk-stat">\u{1F6E1} ${enemyTroops} troops</div>
               </div>
             </div>
             <div class="tac-atk-odds-row">
@@ -1389,7 +1619,7 @@ export class GameShell {
               <span class="tac-atk-odds-pct">${winOdds}%</span>
             </div>
             <div class="tac-atk-btns">
-              <button class="tac-atk-btn tac-atk-btn--launch" type="button" data-action="confirm-attack" data-code="${attackTarget}">&#9876; Launch Attack</button>
+              <button class="tac-atk-btn tac-atk-btn--launch" type="button" data-action="confirm-attack" data-code="${attackTarget}">\u2694 Launch Attack</button>
               <button class="tac-atk-btn tac-atk-btn--cancel" type="button" data-action="set-attack-target" data-code="${attackTarget}">Cancel</button>
             </div>
           </div>
@@ -1398,9 +1628,13 @@ export class GameShell {
         <!-- ── BOTTOM BAR ─────────────────────────── -->
         <div class="tac-bottombar">
           <div class="tac-bottombar__left">
-            <span class="tac-res-icon">&#9830;</span>
-            <span class="tac-res-val">${resources}</span>
-            <span class="tac-res-lbl">resources</span>
+            <span class="tac-res-icon">\u{1F4B0}</span>
+            <span class="tac-res-val">${gold}</span>
+            <span class="tac-res-lbl">gold</span>
+            <span class="tac-res-divider">\u2022</span>
+            <span class="tac-res-icon">\u2694</span>
+            <span class="tac-res-val">${troopCounts[playerCode] || 0}</span>
+            <span class="tac-res-lbl">troops</span>
           </div>
           <div class="tac-bottombar__center">
             <span class="tac-turn-lbl">Turn ${turnNumber}</span>
@@ -1409,12 +1643,12 @@ export class GameShell {
           <div class="tac-bottombar__right">
             <button class="tac-start-btn" type="button" data-action="start-turn"
               ${turnPhase === "battle" ? "disabled" : ""}>
-              &#9654; START TURN
+              \u25B6 START TURN
             </button>
           </div>
         </div>
 
-      </div><!-- /.tac-wrap -->
+      </div>
     `;
   }
 
