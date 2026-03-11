@@ -32,7 +32,7 @@ export class GameShell {
       serverInfo: null,
       serverBrowse: [],
       /* Game Phase */
-      gamePhase: null,       // null | "picking" | "active"
+      gamePhase: null,       // null | "picking" | "intro" | "active"
       gameMode: null,        // "solo" | "multiplayer"
       lockedCountries: {},   // { countryCode: playerName }
       pickedCountry: null,   // current player's tentative pick
@@ -40,6 +40,11 @@ export class GameShell {
       botCount: 5,
       gameZoom: "world",       // "world" | "country"
       attackTarget: null,      // country code targeted for attack
+      introStep: 0,            // current intro animation step
+      turnNumber: 1,
+      turnPhase: "strategy",   // "strategy" | "battle"
+      chatMessages: [],
+      turnTimer: 150,
       mpLoading: false,
       /* Social */
       friendSearch: "",
@@ -179,8 +184,13 @@ export class GameShell {
             .slice(0, this.state.botCount);
           available.forEach((co, i) => { this.state.lockedCountries[co.code] = `Bot ${i + 1}`; });
         }
-        this.state.gamePhase = "active";
+        this.state.gamePhase = "intro";
+        this.state.introStep = 0;
+        this.state.turnNumber = 1;
+        this.state.turnTimer = 150;
+        this.state.chatMessages = [];
         this.renderView();
+        this.startIntro();
       }
       if (action === "pick-back") {
         this.state.gamePhase = null;
@@ -194,6 +204,15 @@ export class GameShell {
         this.state.lockedCountries = {};
         this.state.gameZoom = "world";
         this.state.attackTarget = null;
+        this.state.introStep = 0;
+        this.stopTurnTimer();
+        this.renderView();
+      }
+      if (action === "skip-intro") {
+        this.finishIntro();
+      }
+      if (action === "start-turn") {
+        this.state.turnPhase = "battle";
         this.renderView();
       }
       if (action === "zoom-to-world") {
@@ -211,6 +230,20 @@ export class GameShell {
         this.renderView();
       }
       if (action === "confirm-attack") {
+        // Roll the dice
+        const countries = this.worldState.countries;
+        const playerCode = this.worldState.selectedCountryCode;
+        const player = countries.find((co) => co.code === playerCode);
+        const target = countries.find((co) => co.code === act.dataset.code);
+        if (player && target) {
+          const odds = Math.min(95, Math.max(5, Math.round(50 + (player.militaryScore - target.militaryScore))));
+          const won = Math.random() * 100 < odds;
+          const msg = won
+            ? `&#9876; ${player.name} attacked ${target.name} — VICTORY!`
+            : `&#128293; ${player.name} attacked ${target.name} — REPELLED!`;
+          this.state.chatMessages = [msg, ...this.state.chatMessages].slice(0, 20);
+          if (won) delete this.state.lockedCountries[act.dataset.code];
+        }
         this.state.attackTarget = null;
         this.renderView();
       }
@@ -751,6 +784,15 @@ export class GameShell {
     const country = this.worldState.getSelectedCountry();
     if (!this.root || !country) return;
 
+    // Fullscreen game modes bypass the normal shell
+    if (this.state.gamePhase === "intro" || this.state.gamePhase === "active") {
+      if (this.state.activeScreen === "personal" && this.state.currentUser) {
+        this.stopChestTimer();
+      }
+      this.root.innerHTML = `<div class="game-root ${this.state.settings.animations ? "" : "no-motion"}">${this.renderBackground()}<div class="game-fullscreen">${this.state.gamePhase === "intro" ? this.renderIntro() : this.screenGameActive()}</div></div>`;
+      return;
+    }
+
     // Manage chest cooldown timer
     if (this.state.activeScreen === "personal" && this.state.currentUser) {
       requestAnimationFrame(() => this.startChestTimer());
@@ -780,6 +822,120 @@ export class GameShell {
         </div>
       </div>
     `;
+  }
+
+  /* ─── Cinematic Intro Methods ───────────────────── */
+  startIntro() {
+    const participants = Object.entries(this.state.lockedCountries);
+    const total = participants.length + 2; // steps = each player + "Prepare for war" + "Start"
+    this.state.introStep = 0;
+    const advance = () => {
+      this.state.introStep++;
+      this.renderView();
+      if (this.state.introStep < total - 1) {
+        this._introTimer = setTimeout(advance, 1800);
+      }
+    };
+    this._introTimer = setTimeout(advance, 800);
+  }
+
+  finishIntro() {
+    clearTimeout(this._introTimer);
+    this.state.gamePhase = "active";
+    this.state.gameZoom = "world";
+    this.renderView();
+    this.startTurnTimer();
+  }
+
+  renderIntro() {
+    const countries = this.worldState.countries;
+    const participants = Object.entries(this.state.lockedCountries);
+    const username = this.state.currentUser?.username ?? "Player";
+    const step = this.state.introStep;
+    const isLastStep = step >= participants.length;
+
+    if (isLastStep) {
+      return `
+        <div class="intro-stage intro-stage--final">
+          <div class="intro-final">
+            <div class="intro-final__subtitle">THE DESTINY OF POWER</div>
+            <h1 class="intro-final__title">PREPARE FOR WAR</h1>
+            <p class="intro-final__desc">All nations have been assigned. The world watches in silence.</p>
+            <button class="btn intro-start-btn" type="button" data-action="skip-intro">&#9876; Start Battle &#10132;</button>
+          </div>
+        </div>
+      `;
+    }
+
+    const [code, name] = participants[step];
+    const co = countries.find((c) => c.code === code);
+    const isPlayer = name === username;
+
+    return `
+      <div class="intro-stage">
+        <div class="intro-step-count">${step + 1} / ${participants.length}</div>
+        <div class="intro-card ${isPlayer ? "intro-card--player" : "intro-card--bot"}">
+          <div class="intro-card__flag">${this.getFlag(code)}</div>
+          <div class="intro-card__color-bar" style="background:${co?.color ?? "#666"}"></div>
+          <div class="intro-card__info">
+            <div class="intro-card__role">${isPlayer ? "&#9733; YOUR NATION" : "OPPONENT "+(step+1)}</div>
+            <h1 class="intro-card__country">${co?.name ?? code}</h1>
+            <p class="intro-card__player">${name}</p>
+            <p class="intro-card__capital">&#9670; ${co?.capital ?? ""}</p>
+            <div class="intro-card__stats">
+              <div class="intro-stat"><span>ECO</span><strong>${co?.economyScore ?? 0}</strong></div>
+              <div class="intro-stat"><span>MIL</span><strong>${co?.militaryScore ?? 0}</strong></div>
+              <div class="intro-stat"><span>STB</span><strong>${co?.stabilityScore ?? 0}</strong></div>
+            </div>
+          </div>
+        </div>
+        <button class="btn btn--ghost intro-skip" type="button" data-action="skip-intro">Skip &#10132;</button>
+      </div>
+    `;
+  }
+
+  startTurnTimer() {
+    clearInterval(this._turnInterval);
+    this._turnInterval = setInterval(() => {
+      this.state.turnTimer--;
+      if (this.state.turnTimer <= 0) {
+        this.state.turnTimer = 150;
+        this.state.turnNumber++;
+        this.state.turnPhase = "strategy";
+        // Simple bot logic
+        const c = this.worldState.countries;
+        const locked = this.state.lockedCountries;
+        const playerCode = this.worldState.selectedCountryCode;
+        const username = this.state.currentUser?.username ?? "Player";
+        const enemies = Object.entries(locked).filter(([code, name]) => name !== username);
+        if (enemies.length > 0) {
+          const [attacker] = enemies[Math.floor(Math.random() * enemies.length)];
+          const [defender] = Object.keys(locked).filter((code) => code !== attacker);
+          if (defender) {
+            const atk = c.find((co) => co.code === attacker);
+            const def = c.find((co) => co.code === defender);
+            if (atk && def) {
+              const msg = `&#9876; ${atk.name} attacked ${def.name}`;
+              this.state.chatMessages = [msg, ...this.state.chatMessages].slice(0, 20);
+            }
+          }
+        }
+      }
+      // Update timer display without full re-render
+      const el = this.root.querySelector("[data-turn-timer]");
+      const phaseEl = this.root.querySelector("[data-turn-phase]");
+      if (el) el.textContent = this.formatTimer(this.state.turnTimer);
+      if (phaseEl) phaseEl.textContent = `Turn ${this.state.turnNumber}`;
+    }, 1000);
+  }
+
+  stopTurnTimer() {
+    clearInterval(this._turnInterval);
+  }
+
+  formatTimer(s) {
+    const m = Math.floor(s / 60);
+    return `${String(m).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
   }
 
   renderMain(country) {
@@ -936,18 +1092,15 @@ export class GameShell {
       </div>
       <div class="solo-grid">
         <article class="card card--highlight">
-          <span class="card__label">Selected Nation</span>
-          <strong class="card__value">${c.name}</strong>
-          <p>Capital: ${c.capital}</p>
-          <div class="country-sel">
-            <span class="country-sel__label">Switch country</span>
-            <select data-country-select>
-              ${this.worldState.countries.map(
-                (co) => `<option value="${co.code}" ${co.code === c.code ? "selected" : ""}>${co.name}</option>`,
-              ).join("")}
-            </select>
-            <button class="btn btn--primary btn--wide" type="button" data-action="enter-solo">Enter Solo Match &#10132;</button>
+          <div class="solo-nation-preview">
+            <span class="solo-flag">${this.getFlag(c.code)}</span>
+            <div>
+              <span class="card__label">Selected Nation</span>
+              <strong class="card__value">${c.name}</strong>
+              <p>Capital: ${c.capital}</p>
+            </div>
           </div>
+          <button class="btn btn--primary btn--wide" type="button" data-action="enter-solo">&#9876; Choose Nation &amp; Enter Match</button>
         </article>
         <div class="cards">
           <article class="card">
@@ -1058,8 +1211,7 @@ export class GameShell {
     `;
   }
 
-  /* ─── Active Game Screen — placeholder for replacement ─── */
-  /* ─── Active Game Screen — Globe + World Map ────── */
+  /* ─── Active Game Screen — Tactical Map ────────── */
   screenGameActive() {
     const countries = this.worldState.countries;
     const playerCode = this.worldState.selectedCountryCode;
@@ -1067,160 +1219,202 @@ export class GameShell {
     const locked = this.state.lockedCountries;
     const username = this.state.currentUser?.username ?? "Player";
     const posMap = this.getCountryPositions();
-    const isWorldView = this.state.gameZoom === "world";
     const attackTarget = this.state.attackTarget;
     const targetData = attackTarget ? countries.find((co) => co.code === attackTarget) : null;
     const winOdds = targetData
       ? Math.min(95, Math.max(5, Math.round(50 + (player.militaryScore - targetData.militaryScore))))
       : 0;
+    const turnNumber = this.state.turnNumber;
+    const turnPhase = this.state.turnPhase;
+    const chatMessages = this.state.chatMessages;
+    const turnTimer = this.state.turnTimer;
+    const resources = Math.floor(player.economyScore * 1.5);
 
-    const mapNodes = Object.entries(locked).map(([code, name]) => {
+    // Build participant list for side panel
+    const participants = Object.entries(locked).map(([code, name]) => {
       const co = countries.find((c) => c.code === code);
+      const isPlayer = name === username;
+      return { code, name, co, isPlayer };
+    });
+
+    // Build map territory nodes
+    const mapNodes = participants.map(({ code, name, co, isPlayer }) => {
       const pos = posMap[code];
       if (!co || !pos) return "";
-      const isPlayer = name === username;
-      const isbot = name.startsWith("Bot ");
       const isTarget = code === attackTarget;
-      let cls = "country-node";
-      if (isPlayer) cls += " country-node--player";
-      else if (isbot) cls += " country-node--bot";
-      else cls += " country-node--enemy";
-      if (isTarget) cls += " country-node--target";
+      let cls = "tac-node";
+      if (isPlayer) cls += " tac-node--player";
+      else if (name.startsWith("Bot ")) cls += " tac-node--bot";
+      else cls += " tac-node--enemy";
+      if (isTarget) cls += " tac-node--target";
+      const botIndex = name.startsWith("Bot ") ? parseInt(name.replace("Bot ", "")) || 1 : 0;
+      const nodeColor = isPlayer ? player.color : (co.color ?? `hsl(${botIndex * 60},65%,45%)`);
       return `
         <button class="${cls}" type="button"
           data-action="set-attack-target" data-code="${code}"
-          style="left:${pos.x}%;top:${pos.y}%"
-          title="${co.name}${isPlayer ? " (YOU)" : ` \u2014 ${name}`}">
-          <div class="cn-dot" style="--dot-color:${co.color}"></div>
-          <span class="cn-label">${co.name}</span>
+          style="left:${pos.x}%;top:${pos.y}%;--nc:${nodeColor}"
+          title="${co.name}${isPlayer ? " (YOU)" : ` — ${name}`}">
+          <div class="tac-node__blob"></div>
+          <span class="tac-node__flag">${this.getFlag(code)}</span>
+          <span class="tac-node__lbl">${co.name}</span>
+          ${isPlayer ? `<span class="tac-node__star">★</span>` : ""}
+          ${isTarget ? `<span class="tac-node__crosshair">⊕</span>` : ""}
         </button>
       `;
     }).join("");
 
+    // Battle log messages
+    const chatHtml = chatMessages.length
+      ? chatMessages.slice(-12).map((m) => `<div class="tac-log__msg">${m}</div>`).join("")
+      : `<div class="tac-log__msg tac-log__msg--hint">Waiting for action...</div>`;
+
+    // Participants sidebar rows
+    const playerRows = participants.map(({ code, name, co, isPlayer }) => `
+      <div class="tac-player-row${isPlayer ? " tac-player-row--you" : ""}">
+        <span class="tac-player-row__flag">${this.getFlag(code)}</span>
+        <span class="tac-player-row__name">${isPlayer ? "You" : name}</span>
+        <span class="tac-player-row__territory">${co?.name ?? code}</span>
+      </div>
+    `).join("");
+
+    const phaseLabel = turnPhase === "battle" ? "BATTLE PHASE" : "STRATEGY PHASE";
+    const phaseHint  = turnPhase === "battle"
+      ? "Select an enemy territory to attack"
+      : "Click 'Start Turn' to begin your move";
+
     return `
-      <div class="world-stage">
+      <div class="tac-wrap">
 
-        <!-- HUD -->
-        <div class="game-hud">
-          <div class="hud-player">
-            <div class="hud-flag-wrap">
-              <div class="hud-flag-bg" style="background:${player.color}"></div>
-              <span class="hud-flag-emoji">${this.getFlag(playerCode)}</span>
+        <!-- ── TOP BAR ────────────────────────────── -->
+        <div class="tac-topbar">
+          <div class="tac-topbar__left">
+            <span class="tac-flag-badge">${this.getFlag(playerCode)}</span>
+            <div class="tac-player-info">
+              <div class="tac-player-info__name">${username}</div>
+              <div class="tac-player-info__nation">${player.name}</div>
             </div>
-            <div class="hud-info">
-              <div class="hud-country-name">${player.name}</div>
-              <div class="hud-capital">&#9670; ${player.capital}</div>
-            </div>
-            <span class="hud-live-badge">&#9679; LIVE</span>
           </div>
-          <div class="hud-stats-row">
-            <div class="hud-stat-item"><span class="hud-stat-lbl">ECO</span>
-              <div class="hud-mini-bar"><div class="hud-mini-fill hud-fill--eco" style="width:${player.economyScore}%"></div></div>
-              <span class="hud-stat-num">${player.economyScore}</span></div>
-            <div class="hud-stat-item"><span class="hud-stat-lbl">MIL</span>
-              <div class="hud-mini-bar"><div class="hud-mini-fill hud-fill--mil" style="width:${player.militaryScore}%"></div></div>
-              <span class="hud-stat-num">${player.militaryScore}</span></div>
-            <div class="hud-stat-item"><span class="hud-stat-lbl">STB</span>
-              <div class="hud-mini-bar"><div class="hud-mini-fill hud-fill--stb" style="width:${player.stabilityScore}%"></div></div>
-              <span class="hud-stat-num">${player.stabilityScore}</span></div>
-          </div>
-          <button class="btn btn--danger btn--sm" type="button" data-action="surrender">Surrender</button>
-        </div>
 
-        <!-- WORLD MAP VIEW -->
-        <div class="world-view${isWorldView ? "" : " world-view--hidden"}">
-          <div class="globe-row">
-            <div class="game-globe">
-              <div class="globe-grid-spin"></div>
-              <div class="globe-atmo"></div>
+          <div class="tac-topbar__center">
+            <div class="tac-phase-banner tac-phase-banner--${turnPhase}">
+              <span class="tac-phase-banner__label">${phaseLabel}</span>
+              <span class="tac-phase-banner__hint">${phaseHint}</span>
             </div>
-            <div class="globe-info">
-              <div class="globe-info__title">GLOBAL THEATRE</div>
-              <div class="globe-info__count">${Object.keys(locked).length} nations in play</div>
-              <p class="globe-info__hint">
-                Click <strong style="color:#4ade80">your nation</strong> to open the Command Centre.<br>
-                Click an <strong style="color:#f87171">enemy</strong> to select an attack target.
-              </p>
-            </div>
+            <div class="tac-turn-badge">Turn ${turnNumber}</div>
           </div>
-          <div class="world-map-bg">
-            <div class="map-scanlines"></div>
-            <div class="radar-sweep"></div>
-            ${mapNodes}
-          </div>
-          <div class="map-legend">
-            <span class="legend-pip legend-pip--you"></span><span>You</span>
-            <span class="legend-pip legend-pip--bot"></span><span>Bot</span>
+
+          <div class="tac-topbar__right">
+            <button class="tac-surrender-btn" type="button" data-action="surrender">&#9873; Surrender</button>
           </div>
         </div>
 
-        <!-- COMMAND CENTRE (zoomed in) -->
-        <div class="command-center${isWorldView ? "" : " command-center--active"}">
-          <div class="cmd-back-row">
-            <button class="btn btn--ghost" type="button" data-action="zoom-to-world">&#8592; World Map</button>
-            <div class="cmd-nation-hdr">
-              <span class="cmd-flag-lg">${this.getFlag(playerCode)}</span>
-              <div><h2>${player.name}</h2><p>${player.capital} Command Centre</p></div>
+        <!-- ── MAIN AREA ──────────────────────────── -->
+        <div class="tac-main">
+
+          <!-- Left panel: stats + battle log -->
+          <div class="tac-side tac-side--left">
+            <div class="tac-stat-card">
+              <div class="tac-stat-card__header">YOUR NATION</div>
+              <div class="tac-stat-card__flag">${this.getFlag(playerCode)}</div>
+              <div class="tac-stat-card__name">${player.name}</div>
+              <div class="tac-stat-card__capital">&#9670; ${player.capital}</div>
+              <div class="tac-mini-stats">
+                <div class="tac-mini-stat">
+                  <span class="tac-mini-stat__lbl">ECO</span>
+                  <div class="tac-mini-bar"><div class="tac-mini-bar__fill tac-mini-bar__fill--eco" style="width:${player.economyScore}%"></div></div>
+                  <span class="tac-mini-stat__val">${player.economyScore}</span>
+                </div>
+                <div class="tac-mini-stat">
+                  <span class="tac-mini-stat__lbl">MIL</span>
+                  <div class="tac-mini-bar"><div class="tac-mini-bar__fill tac-mini-bar__fill--mil" style="width:${player.militaryScore}%"></div></div>
+                  <span class="tac-mini-stat__val">${player.militaryScore}</span>
+                </div>
+                <div class="tac-mini-stat">
+                  <span class="tac-mini-stat__lbl">STB</span>
+                  <div class="tac-mini-bar"><div class="tac-mini-bar__fill tac-mini-bar__fill--stb" style="width:${player.stabilityScore}%"></div></div>
+                  <span class="tac-mini-stat__val">${player.stabilityScore}</span>
+                </div>
+              </div>
+              <div class="tac-resources">&#9830; ${resources} res</div>
+            </div>
+
+            <div class="tac-log">
+              <div class="tac-log__header">&#128196; Battle Log</div>
+              <div class="tac-log__body">${chatHtml}</div>
             </div>
           </div>
-          <div class="cmd-stats-panel">
-            ${this.cmdStatBar("Economy", player.economyScore, "#4ade80")}
-            ${this.cmdStatBar("Military", player.militaryScore, "#f87171")}
-            ${this.cmdStatBar("Stability", player.stabilityScore, "#60a5fa")}
-          </div>
-          <div class="cmd-actions-grid">
-            <button class="cmd-action cmd-action--attack" type="button" data-action="zoom-to-world">
-              <span class="cmd-action__icon">&#9876;</span>
-              <span class="cmd-action__name">Attack</span>
-              <span class="cmd-action__desc">Select target on world map</span>
-            </button>
-            <button class="cmd-action cmd-action--locked" type="button" disabled>
-              <span class="cmd-action__icon">&#129309;</span>
-              <span class="cmd-action__name">Negotiate</span>
-              <span class="cmd-action__desc">Coming Soon</span>
-            </button>
-            <button class="cmd-action cmd-action--locked" type="button" disabled>
-              <span class="cmd-action__icon">&#127963;</span>
-              <span class="cmd-action__name">Fortify</span>
-              <span class="cmd-action__desc">Coming Soon</span>
-            </button>
-            <button class="cmd-action cmd-action--locked" type="button" disabled>
-              <span class="cmd-action__icon">&#128373;</span>
-              <span class="cmd-action__name">Spy</span>
-              <span class="cmd-action__desc">Coming Soon</span>
-            </button>
-          </div>
-        </div>
 
-        <!-- ATTACK PANEL (slides in when target selected) -->
+          <!-- Center: tactical map -->
+          <div class="tac-map-area">
+            <div class="tac-map-bg">
+              <div class="tac-map__scanlines"></div>
+              <div class="tac-map__grid"></div>
+              ${mapNodes}
+            </div>
+            <div class="tac-map-legend">
+              <span class="tac-legend-pip tac-legend-pip--you"></span><span>You</span>
+              <span class="tac-legend-pip tac-legend-pip--bot"></span><span>Bot</span>
+            </div>
+          </div>
+
+          <!-- Right panel: players list -->
+          <div class="tac-side tac-side--right">
+            <div class="tac-players-panel">
+              <div class="tac-players-panel__header">&#9876; NATIONS</div>
+              ${playerRows}
+            </div>
+          </div>
+
+        </div><!-- /.tac-main -->
+
+        <!-- ── ATTACK PANEL ───────────────────────── -->
         ${targetData ? `
-          <div class="attack-strip">
-            <div class="atk-combatants">
-              <div class="atk-side atk-side--you">
-                <span class="atk-flag">${this.getFlag(playerCode)}</span>
-                <div class="atk-name">${player.name}</div>
-                <div class="atk-stat atk-mil">&#9876; MIL ${player.militaryScore}</div>
+          <div class="tac-attack-panel">
+            <div class="tac-attack-panel__combatants">
+              <div class="tac-atk-side tac-atk-side--you">
+                <span class="tac-atk-flag">${this.getFlag(playerCode)}</span>
+                <div class="tac-atk-name">${player.name}</div>
+                <div class="tac-atk-stat">&#9876; MIL ${player.militaryScore}</div>
               </div>
-              <div class="atk-vs">VS</div>
-              <div class="atk-side atk-side--enemy">
-                <span class="atk-flag">${this.getFlag(attackTarget)}</span>
-                <div class="atk-name">${targetData.name}</div>
-                <div class="atk-stat atk-def">&#127963; MIL ${targetData.militaryScore}</div>
+              <div class="tac-atk-vs">VS</div>
+              <div class="tac-atk-side tac-atk-side--enemy">
+                <span class="tac-atk-flag">${this.getFlag(attackTarget)}</span>
+                <div class="tac-atk-name">${targetData.name}</div>
+                <div class="tac-atk-stat">&#127963; MIL ${targetData.militaryScore}</div>
               </div>
             </div>
-            <div class="atk-odds-row">
-              <span class="atk-odds-lbl">Victory Odds</span>
-              <div class="atk-odds-bar"><div class="atk-odds-fill" style="width:${winOdds}%"></div></div>
-              <span class="atk-odds-pct">${winOdds}%</span>
+            <div class="tac-atk-odds-row">
+              <span class="tac-atk-odds-lbl">Victory Odds</span>
+              <div class="tac-atk-odds-bar"><div class="tac-atk-odds-fill" style="width:${winOdds}%"></div></div>
+              <span class="tac-atk-odds-pct">${winOdds}%</span>
             </div>
-            <div class="atk-btns">
-              <button class="btn btn--danger" type="button" data-action="confirm-attack" data-code="${attackTarget}">&#9876; Launch Attack</button>
-              <button class="btn btn--ghost" type="button" data-action="set-attack-target" data-code="${attackTarget}">Cancel</button>
+            <div class="tac-atk-btns">
+              <button class="tac-atk-btn tac-atk-btn--launch" type="button" data-action="confirm-attack" data-code="${attackTarget}">&#9876; Launch Attack</button>
+              <button class="tac-atk-btn tac-atk-btn--cancel" type="button" data-action="set-attack-target" data-code="${attackTarget}">Cancel</button>
             </div>
           </div>
         ` : ""}
 
-      </div>
+        <!-- ── BOTTOM BAR ─────────────────────────── -->
+        <div class="tac-bottombar">
+          <div class="tac-bottombar__left">
+            <span class="tac-res-icon">&#9830;</span>
+            <span class="tac-res-val">${resources}</span>
+            <span class="tac-res-lbl">resources</span>
+          </div>
+          <div class="tac-bottombar__center">
+            <span class="tac-turn-lbl">Turn ${turnNumber}</span>
+            <span class="tac-timer" data-turn-timer>${this.formatTimer(turnTimer)}</span>
+          </div>
+          <div class="tac-bottombar__right">
+            <button class="tac-start-btn" type="button" data-action="start-turn"
+              ${turnPhase === "battle" ? "disabled" : ""}>
+              &#9654; START TURN
+            </button>
+          </div>
+        </div>
+
+      </div><!-- /.tac-wrap -->
     `;
   }
 
