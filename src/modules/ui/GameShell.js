@@ -31,6 +31,13 @@ export class GameShell {
       joinPassword: "",
       serverInfo: null,
       serverBrowse: [],
+      /* Game Phase */
+      gamePhase: null,       // null | "picking" | "active"
+      gameMode: null,        // "solo" | "multiplayer"
+      lockedCountries: {},   // { countryCode: playerName }
+      pickedCountry: null,   // current player's tentative pick
+      pickRegionFilter: "all",
+      botCount: 5,
       mpLoading: false,
       /* Social */
       friendSearch: "",
@@ -137,6 +144,52 @@ export class GameShell {
       }
       if (action === "play-solo") {
         this.state.status = `Solo mode selected: ${this.worldState.getSelectedCountry()?.name ?? "No nation"}.`;
+        this.renderView();
+      }
+      if (action === "enter-solo") {
+        this.state.gamePhase = "picking";
+        this.state.gameMode = "solo";
+        this.state.lockedCountries = {};
+        this.state.pickedCountry = null;
+        this.state.pickRegionFilter = "all";
+        this.renderView();
+      }
+      if (action === "pick-region") {
+        this.state.pickRegionFilter = act.dataset.region;
+        this.renderView();
+      }
+      if (action === "pick-country") {
+        const code = act.dataset.code;
+        if (!this.state.lockedCountries[code]) {
+          this.state.pickedCountry = this.state.pickedCountry === code ? null : code;
+          this.renderView();
+        }
+      }
+      if (action === "confirm-pick") {
+        if (!this.state.pickedCountry) return;
+        const user = this.state.currentUser?.username ?? "Player";
+        this.state.lockedCountries[this.state.pickedCountry] = user;
+        this.worldState.setSelectedCountryCode(this.state.pickedCountry);
+        if (this.state.gameMode === "solo") {
+          const available = this.worldState.countries
+            .filter((co) => !this.state.lockedCountries[co.code])
+            .sort(() => Math.random() - 0.5)
+            .slice(0, this.state.botCount);
+          available.forEach((co, i) => { this.state.lockedCountries[co.code] = `Bot ${i + 1}`; });
+        }
+        this.state.gamePhase = "active";
+        this.renderView();
+      }
+      if (action === "pick-back") {
+        this.state.gamePhase = null;
+        this.state.pickedCountry = null;
+        this.state.lockedCountries = {};
+        this.renderView();
+      }
+      if (action === "surrender") {
+        this.state.gamePhase = null;
+        this.state.pickedCountry = null;
+        this.state.lockedCountries = {};
         this.renderView();
       }
       if (action === "mp-host") {
@@ -835,6 +888,8 @@ export class GameShell {
   }
 
   renderScreen(country) {
+    if (this.state.gamePhase === "picking") return this.screenCountryPick();
+    if (this.state.gamePhase === "active") return this.screenGameActive();
     switch (this.state.activeScreen) {
       case "multiplayer": return this.screenMultiplayer();
       case "social": return this.screenSocial();
@@ -844,13 +899,18 @@ export class GameShell {
     }
   }
 
-  /* ─── Solo Screen ───────────────────────────────── */
+  /* ─── Solo Screen (router) ──────────────────────── */
   screenSolo(c) {
+    return this.screenSoloLobby(c);
+  }
+
+  /* ─── Solo Lobby ────────────────────────────────── */
+  screenSoloLobby(c) {
     return `
       <div class="screen__head">
         <p class="screen__tag">Solo Operations</p>
         <h2>Solo Mode</h2>
-        <p>Pick a real-world nation and enter a singleplayer match with a clearly defined start point.</p>
+        <p>Pick a real-world nation and rise to power. Be the last country standing.</p>
       </div>
       <div class="solo-grid">
         <article class="card card--highlight">
@@ -864,7 +924,7 @@ export class GameShell {
                 (co) => `<option value="${co.code}" ${co.code === c.code ? "selected" : ""}>${co.name}</option>`,
               ).join("")}
             </select>
-            <button class="btn btn--primary btn--wide" type="button" data-action="play-solo">Play Solo Mode</button>
+            <button class="btn btn--primary btn--wide" type="button" data-action="enter-solo">Enter Solo Match &#10132;</button>
           </div>
         </article>
         <div class="cards">
@@ -883,6 +943,182 @@ export class GameShell {
             <strong class="card__value">${c.stabilityScore}</strong>
             <p>Internal cohesion that keeps your nation from collapse.</p>
           </article>
+        </div>
+      </div>
+    `;
+  }
+
+  /* ─── Country Pick Screen ───────────────────────── */
+  screenCountryPick() {
+    const countries = this.worldState.countries;
+    const filter = this.state.pickRegionFilter;
+    const regions = ["all", "North America", "South America", "Europe", "Eurasia", "Middle East", "Africa", "Asia", "Oceania"];
+    const visible = filter === "all" ? countries : countries.filter((co) => co.region === filter);
+    const picked = this.state.pickedCountry;
+    const locked = this.state.lockedCountries;
+    const pickedData = picked ? countries.find((co) => co.code === picked) : null;
+
+    return `
+      <div class="pick-screen">
+        <div class="pick-screen__header">
+          <button class="btn btn--ghost" type="button" data-action="pick-back">&#8592; Back</button>
+          <div class="pick-screen__title">
+            <p class="screen__tag">SOLO MATCH</p>
+            <h2>Choose Your Nation</h2>
+            <p>Select a country to lead to global dominance. Be the last one standing.</p>
+          </div>
+        </div>
+
+        <div class="pick-region-tabs">
+          ${regions.map((r) => `
+            <button class="pick-tab${filter === r ? " pick-tab--active" : ""}"
+              type="button" data-action="pick-region" data-region="${r}">
+              ${r === "all" ? "All Regions" : r}
+            </button>
+          `).join("")}
+        </div>
+
+        <div class="country-pick-grid">
+          ${visible.map((co) => {
+            const isLocked = !!locked[co.code];
+            const isSelected = picked === co.code;
+            const lockedBy = locked[co.code];
+            return `
+              <button class="country-card${isLocked ? " country-card--locked" : ""}${isSelected ? " country-card--selected" : ""}"
+                type="button" data-action="pick-country" data-code="${co.code}"
+                ${isLocked ? "disabled" : ""}>
+                <div class="country-card__swatch" style="background:${co.color}"></div>
+                <div class="country-card__body">
+                  <div class="country-card__name">${co.name}</div>
+                  <div class="country-card__capital">&#9670; ${co.capital}</div>
+                  <div class="country-card__region-tag">${co.region}</div>
+                  <div class="country-card__stats">
+                    ${this.miniStatBar("ECO", co.economyScore)}
+                    ${this.miniStatBar("MIL", co.militaryScore)}
+                    ${this.miniStatBar("STB", co.stabilityScore)}
+                  </div>
+                </div>
+                ${isLocked ? `<div class="country-card__lock-overlay">&#128274; ${lockedBy === (this.state.currentUser?.username ?? "") ? "YOUR PICK" : "LOCKED"}</div>` : ""}
+                ${isSelected ? `<div class="country-card__selected-badge">&#10003; SELECTED</div>` : ""}
+              </button>
+            `;
+          }).join("")}
+        </div>
+
+        <div class="pick-confirm-bar${pickedData ? " pick-confirm-bar--active" : ""}">
+          ${pickedData ? `
+            <div class="pick-confirm-bar__preview">
+              <div class="pick-confirm-bar__swatch" style="background:${pickedData.color}"></div>
+              <div>
+                <div class="pick-confirm-bar__name">${pickedData.name}</div>
+                <div class="pick-confirm-bar__region">${pickedData.region}</div>
+              </div>
+            </div>
+            <button class="btn btn--primary" type="button" data-action="confirm-pick">
+              Confirm &amp; Start Match &#10132;
+            </button>
+          ` : `<p class="pick-confirm-bar__hint">&#11013; Select a nation above to begin</p>`}
+        </div>
+      </div>
+    `;
+  }
+
+  miniStatBar(label, score) {
+    const pct = Math.min(100, Math.round(score));
+    return `
+      <div class="stat-mini">
+        <span class="stat-mini__label">${label}</span>
+        <div class="stat-mini__bar"><div class="stat-mini__fill" style="width:${pct}%"></div></div>
+        <span class="stat-mini__val">${score}</span>
+      </div>
+    `;
+  }
+
+  /* ─── Active Game Screen ────────────────────────── */
+  screenGameActive() {
+    const countries = this.worldState.countries;
+    const playerCode = this.worldState.selectedCountryCode;
+    const player = countries.find((co) => co.code === playerCode) ?? countries[0];
+    const locked = this.state.lockedCountries;
+    const username = this.state.currentUser?.username ?? "Player";
+
+    const participants = Object.entries(locked).map(([code, name]) => ({
+      code,
+      name,
+      country: countries.find((co) => co.code === code),
+      isPlayer: name === username,
+    }));
+
+    return `
+      <div class="game-active">
+        <div class="game-active__header">
+          <div class="game-active__flag" style="background:${player.color}"></div>
+          <div class="game-active__info">
+            <h2>${player.name}</h2>
+            <p>${player.capital} &middot; <span class="game-active__badge">&#9679; ACTIVE MATCH</span></p>
+          </div>
+          <button class="btn btn--danger" type="button" data-action="surrender">&#9873; Surrender</button>
+        </div>
+
+        <div class="game-active__panels">
+          <div class="game-active__panel">
+            <h3 class="game-active__panel-title">Your Nation</h3>
+            ${this.gameStatBar("Economy", player.economyScore, "#4ade80")}
+            ${this.gameStatBar("Military", player.militaryScore, "#f87171")}
+            ${this.gameStatBar("Stability", player.stabilityScore, "#60a5fa")}
+          </div>
+          <div class="game-active__panel">
+            <h3 class="game-active__panel-title">Match Players <span class="social-count">${participants.length}</span></h3>
+            <div class="player-list">
+              ${participants.map((p) => `
+                <div class="player-list__item${p.isPlayer ? " player-list__item--you" : ""}">
+                  <div class="player-list__swatch" style="background:${p.country?.color ?? "#666"}"></div>
+                  <div class="player-list__info">
+                    <div class="player-list__name">${p.name}${p.isPlayer ? ` <span class="social-badge social-badge--friend">YOU</span>` : ""}</div>
+                    <div class="player-list__country">${p.country?.name ?? p.code}</div>
+                  </div>
+                </div>
+              `).join("")}
+            </div>
+          </div>
+        </div>
+
+        <h3 class="game-active__panel-title" style="margin:20px 0 10px">Actions</h3>
+        <div class="game-actions">
+          <button class="game-btn game-btn--disabled" type="button" disabled>
+            <span class="game-btn__icon">&#9876;</span>
+            <span class="game-btn__label">Attack</span>
+            <span class="game-btn__soon">Coming Soon</span>
+          </button>
+          <button class="game-btn game-btn--disabled" type="button" disabled>
+            <span class="game-btn__icon">&#129309;</span>
+            <span class="game-btn__label">Negotiate</span>
+            <span class="game-btn__soon">Coming Soon</span>
+          </button>
+          <button class="game-btn game-btn--disabled" type="button" disabled>
+            <span class="game-btn__icon">&#127963;</span>
+            <span class="game-btn__label">Fortify</span>
+            <span class="game-btn__soon">Coming Soon</span>
+          </button>
+          <button class="game-btn game-btn--disabled" type="button" disabled>
+            <span class="game-btn__icon">&#127759;</span>
+            <span class="game-btn__label">View Map</span>
+            <span class="game-btn__soon">Coming Soon</span>
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  gameStatBar(label, score, color) {
+    return `
+      <div class="game-stat">
+        <div class="game-stat__head">
+          <span class="game-stat__label">${label}</span>
+          <span class="game-stat__val">${score}</span>
+        </div>
+        <div class="game-stat__bar">
+          <div class="game-stat__fill" style="width:${Math.min(100, score)}%;background:${color}"></div>
         </div>
       </div>
     `;
